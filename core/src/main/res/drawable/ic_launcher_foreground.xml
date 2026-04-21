@@ -18,8 +18,8 @@
             android:endY="702.5666"
             android:endX="749.3077"
             android:type="linear">
-          <item android:offset="0" android:color="@color/logo_primary"/>
-          <item android:offset="1" android:color="@color/logo_secondary"/>
+          <item android:offset="0" android:color="@color/launcher_icon_primary"/>
+          <item android:offset="1" android:color="@color/launcher_icon_secondary"/>
         </gradient>
       </aapt:attr>
     </path>

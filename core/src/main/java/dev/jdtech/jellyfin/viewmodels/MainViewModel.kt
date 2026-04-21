@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.jdtech.jellyfin.database.ServerDatabaseDao
+import dev.jdtech.jellyfin.models.CollectionType
 import dev.jdtech.jellyfin.models.Server
 import dev.jdtech.jellyfin.models.User
 import dev.jdtech.jellyfin.settings.domain.AppPreferences
@@ -44,6 +45,13 @@ constructor(private val appPreferences: AppPreferences, private val database: Se
                     hasCurrentServer = checkHasCurrentServer(),
                     hasCurrentUser = checkHasCurrentUser(),
                     isOfflineMode = checkIsOfflineMode(),
+                    defaultStartLibraryId = appPreferences.getValue(appPreferences.defaultStartLibraryId),
+                    defaultStartLibraryName =
+                        appPreferences.getValue(appPreferences.defaultStartLibraryName),
+                    defaultStartLibraryType =
+                        CollectionType.fromString(
+                            appPreferences.getValue(appPreferences.defaultStartLibraryType)
+                        ),
                 )
             _state.emit(mainState)
         }
@@ -93,4 +101,7 @@ data class MainState(
     val hasCurrentServer: Boolean = false,
     val hasCurrentUser: Boolean = false,
     val isOfflineMode: Boolean = false,
+    val defaultStartLibraryId: String? = null,
+    val defaultStartLibraryName: String? = null,
+    val defaultStartLibraryType: CollectionType = CollectionType.Unknown,
 )

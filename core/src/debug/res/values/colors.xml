@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="logo_primary">#FFE01F39</color>
+    <color name="logo_primary">#FF14B8A6</color>
+    <color name="logo_secondary">#FF2563EB</color>
+    <color name="ic_launcher_background">#FF08111F</color>
 </resources>

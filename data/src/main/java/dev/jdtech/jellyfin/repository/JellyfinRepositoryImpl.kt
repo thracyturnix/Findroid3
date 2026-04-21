@@ -124,6 +124,7 @@ class JellyfinRepositoryImpl(
         sortOrder: SortOrder,
         startIndex: Int?,
         limit: Int?,
+        isUnplayed: Boolean,
     ): List<FindroidItem> =
         withContext(Dispatchers.IO) {
             jellyfinApi.itemsApi
@@ -132,6 +133,7 @@ class JellyfinRepositoryImpl(
                     parentId = parentId,
                     includeItemTypes = includeTypes,
                     recursive = recursive,
+                    filters = listOfNotNull(if (isUnplayed) ItemFilter.IS_UNPLAYED else null),
                     sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
                     sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
                     startIndex = startIndex,
@@ -148,11 +150,20 @@ class JellyfinRepositoryImpl(
         recursive: Boolean,
         sortBy: SortBy,
         sortOrder: SortOrder,
+        isUnplayed: Boolean,
     ): Flow<PagingData<FindroidItem>> {
         return Pager(
                 config = PagingConfig(pageSize = 10, enablePlaceholders = false),
                 pagingSourceFactory = {
-                    ItemsPagingSource(this, parentId, includeTypes, recursive, sortBy, sortOrder)
+                    ItemsPagingSource(
+                        this,
+                        parentId,
+                        includeTypes,
+                        recursive,
+                        sortBy,
+                        sortOrder,
+                        isUnplayed,
+                    )
                 },
             )
             .flow
@@ -517,6 +528,7 @@ class JellyfinRepositoryImpl(
     override suspend fun markAsPlayed(itemId: UUID) {
         withContext(Dispatchers.IO) {
             database.setPlayed(jellyfinApi.userId!!, itemId, true)
+            database.setPlaybackPositionTicks(itemId, jellyfinApi.userId!!, 0)
             try {
                 jellyfinApi.playStateApi.markPlayedItem(itemId)
             } catch (_: Exception) {

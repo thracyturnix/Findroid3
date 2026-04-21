@@ -134,11 +134,25 @@ fun NavigationRoot(
     hasServers: Boolean,
     hasCurrentServer: Boolean,
     hasCurrentUser: Boolean,
+    defaultStartLibraryId: String?,
+    defaultStartLibraryName: String?,
+    defaultStartLibraryType: CollectionType,
 ) {
     val isOfflineMode = LocalOfflineMode.current
 
     val startDestination =
         when {
+            hasServers &&
+                hasCurrentServer &&
+                hasCurrentUser &&
+                defaultStartLibraryId != null &&
+                defaultStartLibraryName != null &&
+                defaultStartLibraryType != CollectionType.Unknown ->
+                LibraryRoute(
+                    libraryId = defaultStartLibraryId,
+                    libraryName = defaultStartLibraryName,
+                    libraryType = defaultStartLibraryType,
+                )
             hasServers && hasCurrentServer && hasCurrentUser -> HomeRoute
             hasServers && hasCurrentServer -> UsersRoute
             hasServers -> ServersRoute
@@ -341,7 +355,11 @@ fun NavigationRoot(
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     },
-                    navigateBack = { navController.safePopBackStack() },
+                    navigateBack = {
+                        if (!navController.safePopBackStack()) {
+                            resetToHome(navController)
+                        }
+                    },
                 )
             }
             composable<CollectionRoute> { backStackEntry ->
@@ -456,6 +474,13 @@ fun NavigationRoot(
 private fun navigateHome(navController: NavHostController) {
     navController.safeNavigate(HomeRoute) {
         popUpTo(navController.graph.startDestinationId)
+        launchSingleTop = true
+    }
+}
+
+private fun resetToHome(navController: NavHostController) {
+    navController.safeNavigate(HomeRoute) {
+        popUpTo(0)
         launchSingleTop = true
     }
 }

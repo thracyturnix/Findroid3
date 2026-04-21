@@ -1,23 +1,20 @@
 ![Findroid banner](images/findroid-banner.png)
 
-# Findroid
-![GitHub release (with filter)](https://img.shields.io/github/v/release/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub repo stars](https://img.shields.io/github/stars/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub issues](https://img.shields.io/github/issues/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/jarnedemeulemeester/findroid?style=for-the-badge)
-![GitHub all releases](https://img.shields.io/github/downloads/jarnedemeulemeester/findroid/total?style=for-the-badge)
-![GitHub](https://img.shields.io/github/license/jarnedemeulemeester/findroid?style=for-the-badge)
+# Findroid3
 
-Findroid is third-party Android application for Jellyfin that provides a native user interface to browse and play movies and series.
+Findroid3 is a private fork of [Findroid](https://github.com/jarnedemeulemeester/findroid), a third-party Android application for Jellyfin that provides a native user interface to browse and play movies and series.
 
-I am developing this application in my spare time.
+This fork contains custom changes that are not present in upstream. It should be treated as a modified branch of the original project, not as the canonical upstream repository.
 
-**This project is in its early stages so expect bugs.**
+## Fork Notes
+- Renamed app branding to `Findroid3`.
+- Added fork-specific phone UI changes, including a top home-screen libraries matrix.
+- Added library long-press actions for marking items watched or unwatched.
+- Includes local build and deployment adjustments for this forked environment.
+- Should be kept updated against upstream as needed, but may intentionally diverge where the fork requires different behavior.
 
-[<img src="https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=dev.jdtech.jellyfin)
-[<img src="https://user-images.githubusercontent.com/32322857/219019331-027a6775-7362-44bb-a026-281f71e9b37b.png" alt="Available at Amazon Appstore" height="80">](https://www.amazon.com/gp/product/B0BTWC8DNZ)
-[<img src="https://f-droid.org/badge/get-it-on.png" alt="Get it on F-Droid" height="80">](https://f-droid.org/packages/dev.jdtech.jellyfin)
-[<img src="https://gitlab.com/IzzyOnDroid/repo/-/raw/master/assets/IzzyOnDroid.png" alt="Get it on IzzyOnDroid" height="80">](https://apt.izzysoft.de/fdroid/index/apk/dev.jdtech.jellyfin)
+## Upstream
+The upstream project remains [jarnedemeulemeester/findroid](https://github.com/jarnedemeulemeester/findroid). Upstream documentation, release information, and community links may not match the exact state of this fork.
 
 ## Screenshots
 | Home                                | Library                             | Movie                           | Season                            | Episode                             |

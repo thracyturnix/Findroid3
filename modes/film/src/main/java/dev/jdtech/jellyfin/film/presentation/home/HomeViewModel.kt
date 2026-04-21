@@ -45,10 +45,12 @@ constructor(
         viewModelScope.launch(Dispatchers.Default) {
             _state.emit(_state.value.copy(isLoading = true, error = null))
             try {
+                loadDefaultStartLibrary()
                 appPreferences.getValue(appPreferences.currentServer)?.let { serverId ->
                     loadServerName(serverId)
                 }
 
+                loadLibraries()
                 loadSuggestions()
                 loadResumeItems()
                 loadNextUpItems()
@@ -84,6 +86,19 @@ constructor(
             }
 
         _state.emit(_state.value.copy(suggestionsSection = section))
+    }
+
+    private suspend fun loadLibraries() {
+        Timber.i("Loading libraries")
+        _state.emit(_state.value.copy(libraries = repository.getLibraries()))
+    }
+
+    private suspend fun loadDefaultStartLibrary() {
+        _state.emit(
+            _state.value.copy(
+                defaultStartLibraryId = appPreferences.getValue(appPreferences.defaultStartLibraryId)
+            )
+        )
     }
 
     private suspend fun loadResumeItems() {
@@ -149,6 +164,28 @@ constructor(
 
     fun onAction(action: HomeAction) {
         when (action) {
+            is HomeAction.OnLibraryLongClick -> {
+                _state.value = _state.value.copy(selectedLibrary = action.library)
+            }
+            is HomeAction.SetDefaultStartLibrary -> {
+                appPreferences.setValue(
+                    appPreferences.defaultStartLibraryId,
+                    action.library.id.toString(),
+                )
+                appPreferences.setValue(appPreferences.defaultStartLibraryName, action.library.name)
+                appPreferences.setValue(
+                    appPreferences.defaultStartLibraryType,
+                    action.library.type.type,
+                )
+                _state.value =
+                    _state.value.copy(
+                        selectedLibrary = null,
+                        defaultStartLibraryId = action.library.id.toString(),
+                    )
+            }
+            HomeAction.DismissLibraryMenu -> {
+                _state.value = _state.value.copy(selectedLibrary = null)
+            }
             is HomeAction.OnRetryClick -> {
                 loadData()
             }

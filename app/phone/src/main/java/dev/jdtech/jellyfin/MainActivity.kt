@@ -35,6 +35,9 @@ class MainActivity : AppCompatActivity() {
                             hasServers = state.hasServers,
                             hasCurrentServer = state.hasCurrentServer,
                             hasCurrentUser = state.hasCurrentUser,
+                            defaultStartLibraryId = state.defaultStartLibraryId,
+                            defaultStartLibraryName = state.defaultStartLibraryName,
+                            defaultStartLibraryType = state.defaultStartLibraryType,
                         )
                     }
                 }

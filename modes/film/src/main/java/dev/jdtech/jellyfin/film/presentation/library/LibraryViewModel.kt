@@ -5,6 +5,9 @@ import androidx.lifecycle.viewModelScope
 import androidx.paging.cachedIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.jdtech.jellyfin.models.CollectionType
+import dev.jdtech.jellyfin.models.FindroidItem
+import dev.jdtech.jellyfin.models.FindroidMovie
+import dev.jdtech.jellyfin.models.FindroidShow
 import dev.jdtech.jellyfin.models.SortBy
 import dev.jdtech.jellyfin.models.SortOrder
 import dev.jdtech.jellyfin.repository.JellyfinRepository
@@ -31,6 +34,7 @@ constructor(
 
     lateinit var sortBy: SortBy
     lateinit var sortOrder: SortOrder
+    var showUnplayedOnly = false
 
     fun setup(parentId: UUID, libraryType: CollectionType) {
         this.parentId = parentId
@@ -72,6 +76,7 @@ constructor(
                                 else sortBy, // Jellyfin uses a different enum for sorting series by
                             // data played
                             sortOrder = sortOrder,
+                            isUnplayed = showUnplayedOnly,
                         )
                         .cachedIn(viewModelScope)
                 _state.emit(_state.value.copy(items = items))
@@ -85,7 +90,14 @@ constructor(
         if (!::sortBy.isInitialized || !::sortOrder.isInitialized) {
             sortBy = SortBy.fromString(appPreferences.getValue(appPreferences.sortBy))
             sortOrder = SortOrder.fromString(appPreferences.getValue(appPreferences.sortOrder))
-            _state.emit(_state.value.copy(sortBy = sortBy, sortOrder = sortOrder))
+            showUnplayedOnly = appPreferences.getValue(appPreferences.unplayedFilter)
+            _state.emit(
+                _state.value.copy(
+                    sortBy = sortBy,
+                    sortOrder = sortOrder,
+                    showUnplayedOnly = showUnplayedOnly,
+                )
+            )
         }
     }
 
@@ -99,12 +111,54 @@ constructor(
         }
     }
 
+    private fun canShowPlayedMenu(item: FindroidItem): Boolean {
+        return item is FindroidMovie || item is FindroidShow
+    }
+
+    private suspend fun requestRefresh() {
+        _state.emit(_state.value.copy(refreshVersion = _state.value.refreshVersion + 1))
+    }
+
     fun onAction(action: LibraryAction) {
         when (action) {
             is LibraryAction.ChangeSorting -> {
                 if (action.sortBy != this.sortBy || action.sortOrder != this.sortOrder) {
                     setSorting(sortBy = action.sortBy, sortOrder = action.sortOrder)
                     loadItems()
+                }
+            }
+            is LibraryAction.ToggleUnplayedFilter -> {
+                showUnplayedOnly = !showUnplayedOnly
+                viewModelScope.launch {
+                    _state.emit(_state.value.copy(showUnplayedOnly = showUnplayedOnly))
+                    appPreferences.setValue(appPreferences.unplayedFilter, showUnplayedOnly)
+                }
+                loadItems()
+            }
+            is LibraryAction.OnItemLongClick -> {
+                if (canShowPlayedMenu(action.item)) {
+                    viewModelScope.launch {
+                        _state.emit(_state.value.copy(selectedItem = action.item))
+                    }
+                }
+            }
+            is LibraryAction.DismissItemMenu -> {
+                viewModelScope.launch {
+                    _state.emit(_state.value.copy(selectedItem = null))
+                }
+            }
+            is LibraryAction.MarkAsPlayed -> {
+                viewModelScope.launch {
+                    jellyfinRepository.markAsPlayed(action.item.id)
+                    _state.emit(_state.value.copy(selectedItem = null))
+                    requestRefresh()
+                }
+            }
+            is LibraryAction.MarkAsUnplayed -> {
+                viewModelScope.launch {
+                    jellyfinRepository.markAsUnplayed(action.item.id)
+                    _state.emit(_state.value.copy(selectedItem = null))
+                    requestRefresh()
                 }
             }
             else -> Unit

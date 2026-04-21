@@ -16,6 +16,7 @@ class ItemsPagingSource(
     private val recursive: Boolean,
     private val sortBy: SortBy,
     private val sortOrder: SortOrder,
+    private val isUnplayed: Boolean,
 ) : PagingSource<Int, FindroidItem>() {
     override suspend fun load(params: LoadParams<Int>): LoadResult<Int, FindroidItem> {
         val position = params.key ?: 0
@@ -32,6 +33,7 @@ class ItemsPagingSource(
                     sortOrder = sortOrder,
                     startIndex = position,
                     limit = params.loadSize,
+                    isUnplayed = isUnplayed,
                 )
             LoadResult.Page(
                 data = items,

@@ -27,6 +27,7 @@ import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import dev.jdtech.jellyfin.core.presentation.dummy.dummyCollections
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeSection
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeSuggestions
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeView
@@ -39,6 +40,7 @@ import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.presentation.components.ErrorDialog
 import dev.jdtech.jellyfin.presentation.film.components.HomeCarousel
 import dev.jdtech.jellyfin.presentation.film.components.HomeHeader
+import dev.jdtech.jellyfin.presentation.film.components.HomeLibrariesGrid
 import dev.jdtech.jellyfin.presentation.film.components.HomeSection
 import dev.jdtech.jellyfin.presentation.film.components.HomeView
 import dev.jdtech.jellyfin.presentation.film.components.ServerSelectionBottomSheet
@@ -102,6 +104,16 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                 contentPadding = PaddingValues(top = contentPaddingTop, bottom = paddingBottom),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
             ) {
+                item(key = "libraries") {
+                    HomeLibrariesGrid(
+                        libraries = state.libraries,
+                        selectedLibrary = state.selectedLibrary,
+                        defaultStartLibraryId = state.defaultStartLibraryId,
+                        itemsPadding = itemsPadding,
+                        onAction = onAction,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
                 state.suggestionsSection?.let { section ->
                     item(key = section.id) {
                         HomeCarousel(
@@ -190,6 +202,8 @@ private fun HomeScreenLayoutPreview() {
             state =
                 HomeState(
                     server = dummyServer,
+                    libraries = dummyCollections,
+                    defaultStartLibraryId = dummyCollections.firstOrNull()?.id?.toString(),
                     suggestionsSection = dummyHomeSuggestions,
                     resumeSection = dummyHomeSection,
                     views = listOf(dummyHomeView),

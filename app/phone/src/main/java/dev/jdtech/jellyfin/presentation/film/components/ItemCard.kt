@@ -1,6 +1,6 @@
 package dev.jdtech.jellyfin.presentation.film.components
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,6 +34,7 @@ fun ItemCard(
     item: FindroidItem,
     direction: Direction,
     onClick: (FindroidItem) -> Unit,
+    onLongClick: ((FindroidItem) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val width =
@@ -46,7 +47,10 @@ fun ItemCard(
             modifier
                 .width(width.dp)
                 .clip(MaterialTheme.shapes.small)
-                .clickable(onClick = { onClick(item) })
+                .combinedClickable(
+                    onClick = { onClick(item) },
+                    onLongClick = onLongClick?.let { { it(item) } },
+                )
     ) {
         Surface(shape = MaterialTheme.shapes.small) {
             Box {

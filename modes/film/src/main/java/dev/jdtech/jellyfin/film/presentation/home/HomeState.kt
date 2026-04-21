@@ -1,10 +1,14 @@
 package dev.jdtech.jellyfin.film.presentation.home
 
+import dev.jdtech.jellyfin.models.FindroidCollection
 import dev.jdtech.jellyfin.models.HomeItem
 import dev.jdtech.jellyfin.models.Server
 
 data class HomeState(
     val server: Server? = null,
+    val libraries: List<FindroidCollection> = emptyList(),
+    val selectedLibrary: FindroidCollection? = null,
+    val defaultStartLibraryId: String? = null,
     val suggestionsSection: HomeItem.Suggestions? = null,
     val resumeSection: HomeItem.Section? = null,
     val nextUpSection: HomeItem.Section? = null,

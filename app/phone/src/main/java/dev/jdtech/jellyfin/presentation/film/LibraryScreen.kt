@@ -1,6 +1,7 @@
 package dev.jdtech.jellyfin.presentation.film
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.recalculateWindowInsets
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -30,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.PreviewScreenSizes
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -46,6 +50,8 @@ import dev.jdtech.jellyfin.film.presentation.library.LibraryState
 import dev.jdtech.jellyfin.film.presentation.library.LibraryViewModel
 import dev.jdtech.jellyfin.models.CollectionType
 import dev.jdtech.jellyfin.models.FindroidItem
+import dev.jdtech.jellyfin.models.FindroidMovie
+import dev.jdtech.jellyfin.models.FindroidShow
 import dev.jdtech.jellyfin.presentation.components.ErrorDialog
 import dev.jdtech.jellyfin.presentation.film.components.Direction
 import dev.jdtech.jellyfin.presentation.film.components.ErrorCard
@@ -105,6 +111,12 @@ private fun LibraryScreenLayout(
 
     val items = state.items.collectAsLazyPagingItems()
 
+    LaunchedEffect(state.refreshVersion) {
+        if (state.refreshVersion > 0) {
+            items.refresh()
+        }
+    }
+
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var showSortByDialog by remember { mutableStateOf(false) }
@@ -126,6 +138,21 @@ private fun LibraryScreenLayout(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { onAction(LibraryAction.ToggleUnplayedFilter) }) {
+                        Icon(
+                            painter =
+                                painterResource(
+                                    if (state.showUnplayedOnly) CoreR.drawable.ic_eye_off
+                                    else CoreR.drawable.ic_eye
+                                ),
+                            contentDescription =
+                                if (state.showUnplayedOnly) {
+                                    stringResource(CoreR.string.show_watched)
+                                } else {
+                                    stringResource(CoreR.string.hide_watched)
+                                },
+                        )
+                    }
                     IconButton(onClick = { showSortByDialog = true }) {
                         Icon(
                             painter = painterResource(CoreR.drawable.ic_arrow_down_up),
@@ -154,12 +181,48 @@ private fun LibraryScreenLayout(
                 items(count = items.itemCount, key = items.itemKey { it.id }) {
                     val item = items[it]
                     item?.let { item ->
-                        ItemCard(
-                            item = item,
-                            direction = Direction.VERTICAL,
-                            onClick = { onAction(LibraryAction.OnItemClick(item)) },
-                            modifier = Modifier.animateItem(),
-                        )
+                        Box {
+                            ItemCard(
+                                item = item,
+                                direction = Direction.VERTICAL,
+                                onClick = { onAction(LibraryAction.OnItemClick(item)) },
+                                onLongClick = { onAction(LibraryAction.OnItemLongClick(it)) },
+                                modifier = Modifier.animateItem(),
+                            )
+
+                            val selectedItem = state.selectedItem
+                            val isPlayableLibraryItem =
+                                selectedItem is FindroidMovie || selectedItem is FindroidShow
+                            val showMenu =
+                                selectedItem?.id == item.id &&
+                                    isPlayableLibraryItem &&
+                                    (!selectedItem.played || !state.showUnplayedOnly)
+
+                            DropdownMenu(
+                                expanded = showMenu,
+                                onDismissRequest = {
+                                    onAction(LibraryAction.DismissItemMenu)
+                                },
+                            ) {
+                                if (!item.played) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(CoreR.string.mark_as_played)) },
+                                        onClick = {
+                                            onAction(LibraryAction.MarkAsPlayed(item))
+                                        },
+                                    )
+                                } else if (!state.showUnplayedOnly) {
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(stringResource(CoreR.string.unmark_as_played))
+                                        },
+                                        onClick = {
+                                            onAction(LibraryAction.MarkAsUnplayed(item))
+                                        },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
