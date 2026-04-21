@@ -8,9 +8,12 @@ This fork contains custom changes that are not present in upstream. It should be
 
 ## Fork Notes
 - Renamed app branding to `Findroid3`.
+- Added capacity to "Hide Watched" in libratries
+- Toggle Hide Watched on and off
+- Select individual items (long press) to mark as watched or unwatched
 - Added fork-specific phone UI changes, including a top home-screen libraries matrix.
-- Added library long-press actions for marking items watched or unwatched.
-- Includes local build and deployment adjustments for this forked environment.
+- Reconfigured home screen
+- Enabled "start as default" festure so app will start in specified library (instead of Home) 
 - Should be kept updated against upstream as needed, but may intentionally diverge where the fork requires different behavior.
 
 ## Upstream
