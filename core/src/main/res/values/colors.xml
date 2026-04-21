@@ -44,4 +44,6 @@
 
     <color name="logo_primary">#FF3DDC84</color>
     <color name="logo_secondary">#FF00A4DC</color>
+    <color name="launcher_icon_primary">#FFFFA24C</color>
+    <color name="launcher_icon_secondary">#FFFF6A00</color>
 </resources>
