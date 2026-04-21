@@ -355,7 +355,11 @@ fun NavigationRoot(
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     },
-                    navigateBack = { navController.safePopBackStack() },
+                    navigateBack = {
+                        if (!navController.safePopBackStack()) {
+                            resetToHome(navController)
+                        }
+                    },
                 )
             }
             composable<CollectionRoute> { backStackEntry ->
@@ -470,6 +474,13 @@ fun NavigationRoot(
 private fun navigateHome(navController: NavHostController) {
     navController.safeNavigate(HomeRoute) {
         popUpTo(navController.graph.startDestinationId)
+        launchSingleTop = true
+    }
+}
+
+private fun resetToHome(navController: NavHostController) {
+    navController.safeNavigate(HomeRoute) {
+        popUpTo(0)
         launchSingleTop = true
     }
 }
