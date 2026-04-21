@@ -7,6 +7,8 @@ import dev.jdtech.jellyfin.models.Server
 data class HomeState(
     val server: Server? = null,
     val libraries: List<FindroidCollection> = emptyList(),
+    val selectedLibrary: FindroidCollection? = null,
+    val defaultStartLibraryId: String? = null,
     val suggestionsSection: HomeItem.Suggestions? = null,
     val resumeSection: HomeItem.Section? = null,
     val nextUpSection: HomeItem.Section? = null,

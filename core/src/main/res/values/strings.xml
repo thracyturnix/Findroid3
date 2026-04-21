@@ -32,6 +32,8 @@
     <string name="episode_number">Episode %1$d</string>
     <string name="next_up">Next Up</string>
     <string name="libraries">Libraries</string>
+    <string name="make_default_start_screen">Make default start screen</string>
+    <string name="default_start_screen">Default start screen</string>
     <string name="series_poster">Series poster</string>
     <string name="collection_no_media">This collection does not contain any media</string>
     <string name="no_favorites">You have no favorites</string>

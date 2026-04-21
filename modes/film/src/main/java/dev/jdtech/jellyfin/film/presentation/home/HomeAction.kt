@@ -8,6 +8,12 @@ sealed interface HomeAction {
 
     data class OnLibraryClick(val library: FindroidCollection) : HomeAction
 
+    data class OnLibraryLongClick(val library: FindroidCollection) : HomeAction
+
+    data class SetDefaultStartLibrary(val library: FindroidCollection) : HomeAction
+
+    data object DismissLibraryMenu : HomeAction
+
     data object OnRetryClick : HomeAction
 
     data object OnSearchClick : HomeAction

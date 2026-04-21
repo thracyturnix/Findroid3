@@ -107,6 +107,8 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                 item(key = "libraries") {
                     HomeLibrariesGrid(
                         libraries = state.libraries,
+                        selectedLibrary = state.selectedLibrary,
+                        defaultStartLibraryId = state.defaultStartLibraryId,
                         itemsPadding = itemsPadding,
                         onAction = onAction,
                         modifier = Modifier.animateItem(),
@@ -201,6 +203,7 @@ private fun HomeScreenLayoutPreview() {
                 HomeState(
                     server = dummyServer,
                     libraries = dummyCollections,
+                    defaultStartLibraryId = dummyCollections.firstOrNull()?.id?.toString(),
                     suggestionsSection = dummyHomeSuggestions,
                     resumeSection = dummyHomeSection,
                     views = listOf(dummyHomeView),
