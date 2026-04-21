@@ -40,18 +40,23 @@ constructor(
     private val uiTextContinueWatching = UiText.StringResource(FilmR.string.continue_watching)
     private val uiTextNextUp = UiText.StringResource(FilmR.string.next_up)
 
-    fun loadData() {
+    fun loadData(loadSuggestions: Boolean = true) {
         Timber.i("Loading data")
         viewModelScope.launch(Dispatchers.Default) {
             _state.emit(_state.value.copy(isLoading = true, error = null))
             try {
+                loadSectionVisibility()
                 loadDefaultStartLibrary()
                 appPreferences.getValue(appPreferences.currentServer)?.let { serverId ->
                     loadServerName(serverId)
                 }
 
                 loadLibraries()
-                loadSuggestions()
+                if (loadSuggestions) {
+                    loadSuggestions()
+                } else {
+                    _state.emit(_state.value.copy(suggestionsSection = null))
+                }
                 loadResumeItems()
                 loadNextUpItems()
                 loadViews()
@@ -97,6 +102,20 @@ constructor(
         _state.emit(
             _state.value.copy(
                 defaultStartLibraryId = appPreferences.getValue(appPreferences.defaultStartLibraryId)
+            )
+        )
+    }
+
+    private suspend fun loadSectionVisibility() {
+        _state.emit(
+            _state.value.copy(
+                sectionVisibility =
+                    _state.value.sectionVisibility.copy(
+                        libraries = appPreferences.getValue(appPreferences.homeLibrariesVisible),
+                        continueWatching =
+                            appPreferences.getValue(appPreferences.homeContinueWatchingVisible),
+                        nextUp = appPreferences.getValue(appPreferences.homeNextUpVisible),
+                    )
             )
         )
     }
@@ -159,13 +178,64 @@ constructor(
                 emptyList()
             }
 
-        _state.emit(_state.value.copy(views = items))
+        val latestVisibility =
+            items.associate { viewItem ->
+                viewItem.id to
+                    appPreferences.getValue(appPreferences.homeLatestVisible(viewItem.id.toString()))
+            }
+
+        _state.emit(
+            _state.value.copy(
+                views = items,
+                sectionVisibility =
+                    _state.value.sectionVisibility.copy(latestByViewId = latestVisibility)
+            )
+        )
     }
 
     fun onAction(action: HomeAction) {
         when (action) {
             is HomeAction.OnLibraryLongClick -> {
                 _state.value = _state.value.copy(selectedLibrary = action.library)
+            }
+            is HomeAction.SetLibrariesVisibility -> {
+                appPreferences.setValue(appPreferences.homeLibrariesVisible, action.visible)
+                _state.value =
+                    _state.value.copy(
+                        sectionVisibility =
+                            _state.value.sectionVisibility.copy(libraries = action.visible)
+                    )
+            }
+            is HomeAction.SetContinueWatchingVisibility -> {
+                appPreferences.setValue(appPreferences.homeContinueWatchingVisible, action.visible)
+                _state.value =
+                    _state.value.copy(
+                        sectionVisibility =
+                            _state.value.sectionVisibility.copy(continueWatching = action.visible)
+                    )
+            }
+            is HomeAction.SetNextUpVisibility -> {
+                appPreferences.setValue(appPreferences.homeNextUpVisible, action.visible)
+                _state.value =
+                    _state.value.copy(
+                        sectionVisibility =
+                            _state.value.sectionVisibility.copy(nextUp = action.visible)
+                    )
+            }
+            is HomeAction.SetLatestVisibility -> {
+                appPreferences.setValue(
+                    appPreferences.homeLatestVisible(action.viewId.toString()),
+                    action.visible,
+                )
+                _state.value =
+                    _state.value.copy(
+                        sectionVisibility =
+                            _state.value.sectionVisibility.copy(
+                                latestByViewId =
+                                    _state.value.sectionVisibility.latestByViewId +
+                                        (action.viewId to action.visible)
+                            )
+                    )
             }
             is HomeAction.SetDefaultStartLibrary -> {
                 appPreferences.setValue(

@@ -29,7 +29,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyCollections
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeSection
-import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeSuggestions
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyHomeView
 import dev.jdtech.jellyfin.core.presentation.dummy.dummyServer
 import dev.jdtech.jellyfin.film.presentation.home.HomeAction
@@ -38,10 +37,10 @@ import dev.jdtech.jellyfin.film.presentation.home.HomeViewModel
 import dev.jdtech.jellyfin.models.FindroidCollection
 import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.presentation.components.ErrorDialog
-import dev.jdtech.jellyfin.presentation.film.components.HomeCarousel
 import dev.jdtech.jellyfin.presentation.film.components.HomeHeader
 import dev.jdtech.jellyfin.presentation.film.components.HomeLibrariesGrid
 import dev.jdtech.jellyfin.presentation.film.components.HomeSection
+import dev.jdtech.jellyfin.presentation.film.components.HomeSectionsBottomSheet
 import dev.jdtech.jellyfin.presentation.film.components.HomeView
 import dev.jdtech.jellyfin.presentation.film.components.ServerSelectionBottomSheet
 import dev.jdtech.jellyfin.presentation.theme.FindroidTheme
@@ -60,7 +59,7 @@ fun HomeScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
-    LaunchedEffect(true) { viewModel.loadData() }
+    LaunchedEffect(true) { viewModel.loadData(loadSuggestions = false) }
 
     HomeScreenLayout(
         state = state,
@@ -96,6 +95,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
     var showErrorDialog by rememberSaveable { mutableStateOf(false) }
     val showServerSelectionSheetState = rememberModalBottomSheetState()
     var showServerSelectionBottomSheet by remember { mutableStateOf(false) }
+    var showSectionSelectionBottomSheet by remember { mutableStateOf(false) }
 
     Box(modifier = Modifier.fillMaxSize().semantics { isTraversalGroup = true }) {
         PullToRefreshBox(isRefreshing = false, onRefresh = { onAction(HomeAction.OnRetryClick) }) {
@@ -104,26 +104,19 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                 contentPadding = PaddingValues(top = contentPaddingTop, bottom = paddingBottom),
                 verticalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.medium),
             ) {
-                item(key = "libraries") {
-                    HomeLibrariesGrid(
-                        libraries = state.libraries,
-                        selectedLibrary = state.selectedLibrary,
-                        defaultStartLibraryId = state.defaultStartLibraryId,
-                        itemsPadding = itemsPadding,
-                        onAction = onAction,
-                        modifier = Modifier.animateItem(),
-                    )
-                }
-                state.suggestionsSection?.let { section ->
-                    item(key = section.id) {
-                        HomeCarousel(
-                            items = section.items,
+                if (state.sectionVisibility.libraries) {
+                    item(key = "libraries") {
+                        HomeLibrariesGrid(
+                            libraries = state.libraries,
+                            selectedLibrary = state.selectedLibrary,
+                            defaultStartLibraryId = state.defaultStartLibraryId,
                             itemsPadding = itemsPadding,
                             onAction = onAction,
+                            modifier = Modifier.animateItem(),
                         )
                     }
                 }
-                state.resumeSection?.let { section ->
+                state.resumeSection?.takeIf { state.sectionVisibility.continueWatching }?.let { section ->
                     item(key = section.id) {
                         HomeSection(
                             section = section.homeSection,
@@ -133,7 +126,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                         )
                     }
                 }
-                state.nextUpSection?.let { section ->
+                state.nextUpSection?.takeIf { state.sectionVisibility.nextUp }?.let { section ->
                     item(key = section.id) {
                         HomeSection(
                             section = section.homeSection,
@@ -143,7 +136,12 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                         )
                     }
                 }
-                items(state.views, key = { it.id }) { view ->
+                items(
+                    state.views.filter {
+                        state.sectionVisibility.latestByViewId[it.id] ?: true
+                    },
+                    key = { it.id },
+                ) { view ->
                     HomeView(
                         view = view,
                         itemsPadding = itemsPadding,
@@ -166,6 +164,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
         onServerClick = { showServerSelectionBottomSheet = true },
         onErrorClick = { showErrorDialog = true },
         onRetryClick = { onAction(HomeAction.OnRetryClick) },
+        onSectionsClick = { showSectionSelectionBottomSheet = true },
         onSearchClick = { onAction(HomeAction.OnSearchClick) },
         onUserClick = { onAction(HomeAction.OnSettingsClick) },
         modifier = Modifier.padding(start = paddingStart, top = paddingTop, end = paddingEnd),
@@ -192,6 +191,29 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
             sheetState = showServerSelectionSheetState,
         )
     }
+
+    if (showSectionSelectionBottomSheet) {
+        HomeSectionsBottomSheet(
+            librariesVisible = state.sectionVisibility.libraries,
+            continueWatchingVisible = state.sectionVisibility.continueWatching,
+            nextUpVisible = state.sectionVisibility.nextUp,
+            views = state.views,
+            latestVisibility = state.sectionVisibility.latestByViewId,
+            onLibrariesVisibilityChange = {
+                onAction(HomeAction.SetLibrariesVisibility(it))
+            },
+            onContinueWatchingVisibilityChange = {
+                onAction(HomeAction.SetContinueWatchingVisibility(it))
+            },
+            onNextUpVisibilityChange = {
+                onAction(HomeAction.SetNextUpVisibility(it))
+            },
+            onLatestVisibilityChange = { view, visible ->
+                onAction(HomeAction.SetLatestVisibility(view.id, visible))
+            },
+            onDismissRequest = { showSectionSelectionBottomSheet = false },
+        )
+    }
 }
 
 @PreviewScreenSizes
@@ -204,7 +226,6 @@ private fun HomeScreenLayoutPreview() {
                     server = dummyServer,
                     libraries = dummyCollections,
                     defaultStartLibraryId = dummyCollections.firstOrNull()?.id?.toString(),
-                    suggestionsSection = dummyHomeSuggestions,
                     resumeSection = dummyHomeSection,
                     views = listOf(dummyHomeView),
                     error = Exception("Failed to load data"),

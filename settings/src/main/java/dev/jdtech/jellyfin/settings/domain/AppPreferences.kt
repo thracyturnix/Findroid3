@@ -20,6 +20,9 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val homeContinueWatching = Preference<Boolean>("home_continue_watching", true)
     val homeNextUp = Preference<Boolean>("home_next_up", true)
     val homeLatest = Preference<Boolean>("home_latest", true)
+    val homeLibrariesVisible = Preference("home_libraries_visible", true)
+    val homeContinueWatchingVisible = Preference("home_continue_watching_visible", true)
+    val homeNextUpVisible = Preference("home_next_up_visible", true)
     val defaultStartLibraryId = Preference<String?>("pref_default_start_library_id", null)
     val defaultStartLibraryName = Preference<String?>("pref_default_start_library_name", null)
     val defaultStartLibraryType = Preference<String?>("pref_default_start_library_type", null)
@@ -104,6 +107,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
 
     // Offline mode
     val offlineMode = Preference("pref_offline_mode", false)
+
+    fun homeLatestVisible(viewId: String) = Preference("home_latest_visible_$viewId", true)
 
     inline fun <reified T> getValue(preference: Preference<T>): T {
         return try {

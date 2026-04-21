@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -35,6 +36,7 @@ fun ItemCard(
     direction: Direction,
     onClick: (FindroidItem) -> Unit,
     onLongClick: ((FindroidItem) -> Unit)? = null,
+    useFixedWidth: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val width =
@@ -44,8 +46,11 @@ fun ItemCard(
         }
     Column(
         modifier =
-            modifier
-                .width(width.dp)
+            if (useFixedWidth) {
+                modifier.width(width.dp)
+            } else {
+                modifier.fillMaxWidth()
+            }
                 .clip(MaterialTheme.shapes.small)
                 .combinedClickable(
                     onClick = { onClick(item) },

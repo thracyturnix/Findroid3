@@ -8,8 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,17 +34,11 @@ fun HomeSection(
             )
         }
         Spacer(modifier = Modifier.height(MaterialTheme.spacings.extraSmall))
-        LazyRow(
-            contentPadding = itemsPadding,
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.default),
-        ) {
-            items(section.items, key = { it.id }) { item ->
-                ItemCard(
-                    item = item,
-                    direction = Direction.HORIZONTAL,
-                    onClick = { onAction(HomeAction.OnItemClick(item)) },
-                )
-            }
-        }
+        HomeItemsGrid(
+            items = section.items,
+            direction = Direction.HORIZONTAL,
+            onItemClick = { onAction(HomeAction.OnItemClick(it)) },
+            modifier = Modifier.padding(itemsPadding),
+        )
     }
 }
