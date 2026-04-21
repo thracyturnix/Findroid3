@@ -49,6 +49,7 @@ constructor(
                     loadServerName(serverId)
                 }
 
+                loadLibraries()
                 loadSuggestions()
                 loadResumeItems()
                 loadNextUpItems()
@@ -84,6 +85,11 @@ constructor(
             }
 
         _state.emit(_state.value.copy(suggestionsSection = section))
+    }
+
+    private suspend fun loadLibraries() {
+        Timber.i("Loading libraries")
+        _state.emit(_state.value.copy(libraries = repository.getLibraries()))
     }
 
     private suspend fun loadResumeItems() {
