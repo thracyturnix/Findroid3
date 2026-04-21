@@ -139,20 +139,26 @@ fun NavigationRoot(
     defaultStartLibraryType: CollectionType,
 ) {
     val isOfflineMode = LocalOfflineMode.current
-
-    val startDestination =
-        when {
+    val defaultStartLibraryRoute =
+        if (
             hasServers &&
                 hasCurrentServer &&
                 hasCurrentUser &&
                 defaultStartLibraryId != null &&
                 defaultStartLibraryName != null &&
-                defaultStartLibraryType != CollectionType.Unknown ->
-                LibraryRoute(
-                    libraryId = defaultStartLibraryId,
-                    libraryName = defaultStartLibraryName,
-                    libraryType = defaultStartLibraryType,
-                )
+                defaultStartLibraryType != CollectionType.Unknown
+        ) {
+            LibraryRoute(
+                libraryId = defaultStartLibraryId,
+                libraryName = defaultStartLibraryName,
+                libraryType = defaultStartLibraryType,
+            )
+        } else {
+            null
+        }
+
+    val startDestination =
+        when {
             hasServers && hasCurrentServer && hasCurrentUser -> HomeRoute
             hasServers && hasCurrentServer -> UsersRoute
             hasServers -> ServersRoute
@@ -167,6 +173,9 @@ fun NavigationRoot(
     val navigationItemClassNames = navigationItems.map { it.route::class.qualifiedName }
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    var hasAutoNavigatedToDefaultLibrary by remember(defaultStartLibraryRoute) {
+        mutableStateOf(false)
+    }
 
     var searchExpanded by remember { mutableStateOf(false) }
 
@@ -180,6 +189,17 @@ fun NavigationRoot(
             navigationSuiteScaffoldState.show()
         } else {
             navigationSuiteScaffoldState.hide()
+        }
+    }
+
+    LaunchedEffect(currentRoute, defaultStartLibraryRoute, hasAutoNavigatedToDefaultLibrary) {
+        if (
+            currentRoute == HomeRoute::class.qualifiedName &&
+                defaultStartLibraryRoute != null &&
+                !hasAutoNavigatedToDefaultLibrary
+        ) {
+            hasAutoNavigatedToDefaultLibrary = true
+            navController.safeNavigate(defaultStartLibraryRoute)
         }
     }
 
@@ -357,7 +377,7 @@ fun NavigationRoot(
                     },
                     navigateBack = {
                         if (!navController.safePopBackStack()) {
-                            resetToHome(navController)
+                            navigateHome(navController)
                         }
                     },
                 )
@@ -474,13 +494,6 @@ fun NavigationRoot(
 private fun navigateHome(navController: NavHostController) {
     navController.safeNavigate(HomeRoute) {
         popUpTo(navController.graph.startDestinationId)
-        launchSingleTop = true
-    }
-}
-
-private fun resetToHome(navController: NavHostController) {
-    navController.safeNavigate(HomeRoute) {
-        popUpTo(0)
         launchSingleTop = true
     }
 }
