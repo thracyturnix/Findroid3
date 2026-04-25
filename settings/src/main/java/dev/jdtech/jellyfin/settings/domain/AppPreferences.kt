@@ -32,7 +32,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerBrightness = Preference("pref_player_brightness", -1.0f)
 
     // Player - mpv
-    val playerMpv = Preference("pref_player_mpv", false)
+    val playerMpv = Preference("pref_player_mpv", true)
     val playerMpvHwdec = Preference("pref_player_mpv_hwdec", "mediacodec")
     val playerMpvVo = Preference("pref_player_mpv_vo", "gpu-next")
     val playerMpvAo = Preference("pref_player_mpv_ao", "aaudio")
