@@ -2,9 +2,11 @@ package dev.jdtech.jellyfin.player.local.mpv
 
 import android.content.Context
 import android.content.res.AssetManager
+import android.hardware.display.DisplayManager
 import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.view.Display
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.SurfaceView
@@ -39,12 +41,12 @@ import dev.jdtech.mpv.MPVLib.MpvFormat
 import dev.jdtech.mpv.MPVLib.MpvEvent
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.util.concurrent.CopyOnWriteArraySet
 import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import timber.log.Timber
-import java.io.IOException
 
 class MPVPlayer(
     context: Context,
@@ -158,6 +160,21 @@ class MPVPlayer(
         mpvLib.setOptionString("ao", audioOutput)
         mpvLib.setOptionString("gpu-context", "android")
         mpvLib.setOptionString("opengl-es", "yes")
+        mpvLib.setOptionString("opengl-swapinterval", "1")
+
+        // Keep frame presentation aligned with Android's display vsync.
+        mpvLib.setOptionString("video-sync", "display-resample")
+        mpvLib.setOptionString("interpolation", "yes")
+        mpvLib.setOptionString("tscale", "oversample")
+        context
+            .getSystemService<DisplayManager>()
+            ?.getDisplay(Display.DEFAULT_DISPLAY)
+            ?.refreshRate
+            ?.let { refreshRate ->
+                if (refreshRate > 0f) {
+                    mpvLib.setOptionString("display-fps-override", refreshRate.toString())
+                }
+            }
 
         // Hardware video decoding
         mpvLib.setOptionString("hwdec", hwDec)
