@@ -51,6 +51,7 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     val playerSeekBackInc = Preference("pref_player_seek_back_inc", 5_000L)
     val playerSeekForwardInc = Preference("pref_player_seek_forward_inc", 15_000L)
     val playerChapterMarkers = Preference("pref_player_chapter_markers", true)
+    val playerAvoidCameraCutout = Preference("pref_player_avoid_camera_cutout", false)
 
     // Player - Media Segments
     val playerMediaSegmentsSkipButton

@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.RectF
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
@@ -30,6 +31,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
+import androidx.media3.common.Player
+import androidx.media3.common.VideoSize
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
@@ -61,8 +64,16 @@ class PlayerActivity : BasePlayerActivity() {
     private var previewScrubListener: PreviewScrubListener? = null
     private var wasZoom: Boolean = false
     private var skipButtonTimeoutExpired: Boolean = true
+    private var cutoutAvoidanceEnabled: Boolean = false
 
     private lateinit var skipSegmentButton: Button
+
+    private val cutoutAvoidancePlayerListener =
+        object : Player.Listener {
+            override fun onVideoSizeChanged(videoSize: VideoSize) {
+                updateCameraCutoutAvoidance()
+            }
+        }
 
     private val isPipSupported by lazy {
         // Check if device has PiP feature
@@ -98,7 +109,16 @@ class PlayerActivity : BasePlayerActivity() {
         setContentView(binding.root)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
+        cutoutAvoidanceEnabled = appPreferences.getValue(appPreferences.playerAvoidCameraCutout)
         binding.playerView.player = viewModel.player
+        viewModel.player.addListener(cutoutAvoidancePlayerListener)
+        binding.playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+            updateCameraCutoutAvoidance()
+        }
+        binding.root.setOnApplyWindowInsetsListener { _, windowInsets ->
+            updateCameraCutoutAvoidance()
+            windowInsets
+        }
         binding.playerView.setControllerVisibilityListener(
             PlayerView.ControllerVisibilityListener { visibility ->
                 if (visibility == View.GONE) {
@@ -199,6 +219,7 @@ class PlayerActivity : BasePlayerActivity() {
 
                             // File Loaded
                             if (fileLoaded) {
+                                updateCameraCutoutAvoidance()
                                 audioButton.isEnabled = true
                                 audioButton.imageAlpha = 255
                                 lockButton.isEnabled = true
@@ -329,6 +350,7 @@ class PlayerActivity : BasePlayerActivity() {
             itemKind = itemKind ?: "",
             startFromBeginning = startFromBeginning,
         )
+        binding.playerView.post { updateCameraCutoutAvoidance() }
         hideSystemUI()
     }
 
@@ -357,6 +379,11 @@ class PlayerActivity : BasePlayerActivity() {
         ) {
             pictureInPicture()
         }
+    }
+
+    override fun onDestroy() {
+        viewModel.player.removeListener(cutoutAvoidancePlayerListener)
+        super.onDestroy()
     }
 
     private fun finishPlayback() {
@@ -437,6 +464,7 @@ class PlayerActivity : BasePlayerActivity() {
     ) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
         viewModel.isInPictureInPictureMode = isInPictureInPictureMode
+        updateCameraCutoutAvoidance()
         when (isInPictureInPictureMode) {
             true -> {
                 binding.playerView.useController = false
@@ -469,5 +497,96 @@ class PlayerActivity : BasePlayerActivity() {
                 }
             }
         }
+    }
+
+    private fun updateCameraCutoutAvoidance() {
+        if (!::binding.isInitialized) return
+
+        val padding =
+            if (cutoutAvoidanceEnabled && !isInPictureInPictureMode) {
+                calculateCameraCutoutAvoidancePadding()
+            } else {
+                CutoutPadding.NONE
+            }
+
+        if (
+            binding.playerView.paddingLeft != padding.left ||
+                binding.playerView.paddingRight != padding.right
+        ) {
+            binding.playerView.setPadding(padding.left, 0, padding.right, 0)
+        }
+    }
+
+    private fun calculateCameraCutoutAvoidancePadding(): CutoutPadding {
+        val playerView = binding.playerView
+        val width = playerView.width
+        val height = playerView.height
+        if (width <= height || width == 0 || height == 0) return CutoutPadding.NONE
+
+        val videoSize = viewModel.player.videoSize
+        if (videoSize == VideoSize.UNKNOWN || videoSize.width <= 0 || videoSize.height <= 0) {
+            return CutoutPadding.NONE
+        }
+
+        val cutout = binding.root.rootWindowInsets?.displayCutout ?: return CutoutPadding.NONE
+        val unsafeLeft = cutoutUnsafeLeft(width, cutout.safeInsetLeft, cutout.boundingRects)
+        val unsafeRight = cutoutUnsafeRight(width, cutout.safeInsetRight, cutout.boundingRects)
+        if (unsafeLeft == 0 && unsafeRight == 0) return CutoutPadding.NONE
+
+        val videoRect = fittedVideoRect(width, height, videoSize)
+        val avoidLeft = unsafeLeft > 0 && videoRect.left < unsafeLeft
+        val avoidRight = unsafeRight > 0 && videoRect.right > width - unsafeRight
+
+        return CutoutPadding(
+            left = if (avoidLeft) unsafeLeft else 0,
+            right = if (avoidRight) unsafeRight else 0,
+        )
+    }
+
+    private fun fittedVideoRect(width: Int, height: Int, videoSize: VideoSize): RectF {
+        val videoAspectRatio =
+            (videoSize.width * videoSize.pixelWidthHeightRatio) / videoSize.height
+        val containerAspectRatio = width.toFloat() / height
+
+        return if (containerAspectRatio > videoAspectRatio) {
+            val renderedWidth = height * videoAspectRatio
+            val left = (width - renderedWidth) / 2f
+            RectF(left, 0f, left + renderedWidth, height.toFloat())
+        } else {
+            val renderedHeight = width / videoAspectRatio
+            val top = (height - renderedHeight) / 2f
+            RectF(0f, top, width.toFloat(), top + renderedHeight)
+        }
+    }
+
+    private fun cutoutUnsafeLeft(width: Int, safeInsetLeft: Int, boundingRects: List<Rect>): Int {
+        val cutoutBounds =
+            boundingRects
+                .filter { it.left < width * CAMERA_CUTOUT_EDGE_FRACTION && it.centerX() < width / 2 }
+                .maxOfOrNull { it.right }
+                ?: 0
+        return maxOf(safeInsetLeft, cutoutBounds)
+    }
+
+    private fun cutoutUnsafeRight(width: Int, safeInsetRight: Int, boundingRects: List<Rect>): Int {
+        val cutoutBounds =
+            boundingRects
+                .filter {
+                    it.right > width * (1 - CAMERA_CUTOUT_EDGE_FRACTION) &&
+                        it.centerX() > width / 2
+                }
+                .maxOfOrNull { width - it.left }
+                ?: 0
+        return maxOf(safeInsetRight, cutoutBounds)
+    }
+
+    private data class CutoutPadding(val left: Int, val right: Int) {
+        companion object {
+            val NONE = CutoutPadding(0, 0)
+        }
+    }
+
+    companion object {
+        private const val CAMERA_CUTOUT_EDGE_FRACTION = 0.08f
     }
 }

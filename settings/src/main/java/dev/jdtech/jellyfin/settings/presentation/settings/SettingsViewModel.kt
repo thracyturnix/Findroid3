@@ -528,6 +528,22 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                 )
                                             ),
                                     ),
+                                    PreferenceGroup(
+                                        preferences =
+                                            listOf(
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string
+                                                            .pref_player_avoid_camera_cutout,
+                                                    descriptionStringRes =
+                                                        R.string
+                                                            .pref_player_avoid_camera_cutout_summary,
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.playerAvoidCameraCutout,
+                                                )
+                                            ),
+                                    ),
                                 ),
                         )
                     )
