@@ -12,6 +12,7 @@ import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.models.User
 import dev.jdtech.jellyfin.models.toFindroidEpisode
 import dev.jdtech.jellyfin.models.toFindroidMovie
+import dev.jdtech.jellyfin.models.toFindroidShow
 import dev.jdtech.jellyfin.settings.domain.AppPreferences
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -59,9 +60,14 @@ constructor(
                         database.getEpisodesByServerId(server.id).map {
                             it.toFindroidEpisode(database, user.id)
                         }
+                    val shows =
+                        database.getShowsByServerId(server.id).map {
+                            it.toFindroidShow(database, user.id)
+                        }
 
                     syncUserData(jellyfinApi, user, movies)
                     syncUserData(jellyfinApi, user, episodes)
+                    syncUserData(jellyfinApi, user, shows)
                 }
             }
 

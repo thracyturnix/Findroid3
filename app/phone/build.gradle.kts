@@ -21,6 +21,7 @@ android {
 
         versionCode = Versions.APP_CODE
         versionName = Versions.APP_NAME
+        buildConfigField("String", "FORK_BUILD", "\"${Versions.FORK_BUILD}\"")
 
         testInstrumentationRunner = "dev.jdtech.jellyfin.HiltTestRunner"
     }

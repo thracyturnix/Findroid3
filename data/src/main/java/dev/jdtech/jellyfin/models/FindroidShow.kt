@@ -34,16 +34,17 @@ data class FindroidShow(
 ) : FindroidItem
 
 fun BaseItemDto.toFindroidShow(jellyfinRepository: JellyfinRepository): FindroidShow {
+    val unplayedCount = userData?.unplayedItemCount
     return FindroidShow(
         id = id,
         name = name.orEmpty(),
         originalTitle = originalTitle,
         overview = overview.orEmpty(),
-        played = userData?.played == true,
+        played = userData?.played == true || unplayedCount == 0,
         favorite = userData?.isFavorite == true,
         canPlay = playAccess != PlayAccess.NONE,
         canDownload = canDownload == true,
-        unplayedItemCount = userData?.unplayedItemCount,
+        unplayedItemCount = unplayedCount,
         sources = emptyList(),
         seasons = emptyList(),
         genres = genres ?: emptyList(),
@@ -61,16 +62,20 @@ fun BaseItemDto.toFindroidShow(jellyfinRepository: JellyfinRepository): Findroid
 
 fun FindroidShowDto.toFindroidShow(database: ServerDatabaseDao, userId: UUID): FindroidShow {
     val userData = database.getUserDataOrCreateNew(id, userId)
+    val episodeUserData =
+        database.getEpisodesByShowId(id).map { database.getUserDataOrCreateNew(it.id, userId) }
+    val hasLocalEpisodeState = episodeUserData.isNotEmpty()
+    val unplayedEpisodeCount = episodeUserData.count { !it.played }
     return FindroidShow(
         id = id,
         name = name,
         originalTitle = originalTitle,
         overview = overview,
-        played = userData.played,
+        played = userData.played || (hasLocalEpisodeState && unplayedEpisodeCount == 0),
         favorite = userData.favorite,
         canPlay = true,
         canDownload = false,
-        unplayedItemCount = null,
+        unplayedItemCount = if (hasLocalEpisodeState) unplayedEpisodeCount else null,
         sources = emptyList(),
         seasons = emptyList(),
         genres = emptyList(),

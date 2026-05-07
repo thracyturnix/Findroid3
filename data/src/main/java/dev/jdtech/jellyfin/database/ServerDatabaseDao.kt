@@ -118,7 +118,7 @@ interface ServerDatabaseDao {
     @Query(
         "UPDATE userdata SET playbackPositionTicks = :playbackPositionTicks WHERE itemId = :itemId AND userid = :userId"
     )
-    fun setPlaybackPositionTicks(itemId: UUID, userId: UUID, playbackPositionTicks: Long)
+    fun updatePlaybackPositionTicks(itemId: UUID, userId: UUID, playbackPositionTicks: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     fun insertMediaStream(mediaStream: FindroidMediaStreamDto)
@@ -141,10 +141,10 @@ interface ServerDatabaseDao {
     fun deleteMediaStreamsBySourceId(sourceId: String)
 
     @Query("UPDATE userdata SET played = :played WHERE userId = :userId AND itemId = :itemId")
-    fun setPlayed(userId: UUID, itemId: UUID, played: Boolean)
+    fun updatePlayed(userId: UUID, itemId: UUID, played: Boolean)
 
     @Query("UPDATE userdata SET favorite = :favorite WHERE userId = :userId AND itemId = :itemId")
-    fun setFavorite(userId: UUID, itemId: UUID, favorite: Boolean)
+    fun updateFavorite(userId: UUID, itemId: UUID, favorite: Boolean)
 
     @Query("SELECT * FROM movies ORDER BY name ASC") fun getMovies(): List<FindroidMovieDto>
 
@@ -241,7 +241,31 @@ interface ServerDatabaseDao {
     @Query(
         "UPDATE userdata SET toBeSynced = :toBeSynced WHERE itemId = :itemId AND userId = :userId"
     )
-    fun setUserDataToBeSynced(userId: UUID, itemId: UUID, toBeSynced: Boolean)
+    fun updateUserDataToBeSynced(userId: UUID, itemId: UUID, toBeSynced: Boolean)
+
+    @Transaction
+    fun setPlaybackPositionTicks(itemId: UUID, userId: UUID, playbackPositionTicks: Long) {
+        getUserDataOrCreateNew(itemId, userId)
+        updatePlaybackPositionTicks(itemId, userId, playbackPositionTicks)
+    }
+
+    @Transaction
+    fun setPlayed(userId: UUID, itemId: UUID, played: Boolean) {
+        getUserDataOrCreateNew(itemId, userId)
+        updatePlayed(userId, itemId, played)
+    }
+
+    @Transaction
+    fun setFavorite(userId: UUID, itemId: UUID, favorite: Boolean) {
+        getUserDataOrCreateNew(itemId, userId)
+        updateFavorite(userId, itemId, favorite)
+    }
+
+    @Transaction
+    fun setUserDataToBeSynced(userId: UUID, itemId: UUID, toBeSynced: Boolean) {
+        getUserDataOrCreateNew(itemId, userId)
+        updateUserDataToBeSynced(userId, itemId, toBeSynced)
+    }
 
     @Query("SELECT * FROM movies WHERE serverId = :serverId AND name LIKE '%' || :name || '%'")
     fun searchMovies(serverId: String, name: String): List<FindroidMovieDto>

@@ -119,6 +119,11 @@ fun AboutScreen(navigateBack: () -> Unit) {
                                 text = "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
                                 style = MaterialTheme.typography.bodyLarge,
                             )
+                            Text(
+                                text = "Fork build ${BuildConfig.FORK_BUILD}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             Spacer(Modifier.height(MaterialTheme.spacings.small))
                             Text(
                                 text = stringResource(CoreR.string.app_description),
