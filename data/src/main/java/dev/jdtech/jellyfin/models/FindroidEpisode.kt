@@ -43,10 +43,14 @@ suspend fun BaseItemDto.toFindroidEpisode(
 ): FindroidEpisode? {
     val sources = mutableListOf<FindroidSource>()
     sources.addAll(mediaSources?.map { it.toFindroidSource(jellyfinRepository, id) } ?: emptyList())
+    val localUserData =
+        database?.getUserData(itemId = id, userId = jellyfinRepository.getUserId())
+    val preferLocalUserData = localUserData != null && (localUserData.toBeSynced || userData == null)
     if (database != null) {
         sources.addAll(database.getSources(id).map { it.toFindroidSource(database) })
     }
     return try {
+        val effectiveLocalUserData = if (preferLocalUserData) checkNotNull(localUserData) else null
         FindroidEpisode(
             id = id,
             name = name.orEmpty(),
@@ -56,12 +60,14 @@ suspend fun BaseItemDto.toFindroidEpisode(
             indexNumberEnd = indexNumberEnd,
             parentIndexNumber = parentIndexNumber ?: 0,
             sources = sources,
-            played = userData?.played == true,
-            favorite = userData?.isFavorite == true,
+            played = effectiveLocalUserData?.played ?: (userData?.played == true),
+            favorite =
+                effectiveLocalUserData?.favorite ?: (userData?.isFavorite == true),
             canPlay = playAccess != PlayAccess.NONE,
             canDownload = canDownload == true,
             runtimeTicks = runTimeTicks ?: 0,
-            playbackPositionTicks = userData?.playbackPositionTicks ?: 0L,
+            playbackPositionTicks =
+                effectiveLocalUserData?.playbackPositionTicks ?: (userData?.playbackPositionTicks ?: 0L),
             premiereDate = premiereDate,
             seriesId = seriesId!!,
             seriesName = seriesName.orEmpty(),
