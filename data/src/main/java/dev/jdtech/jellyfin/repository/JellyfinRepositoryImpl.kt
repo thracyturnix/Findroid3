@@ -252,6 +252,10 @@ class JellyfinRepositoryImpl(
                 .content
                 .items
                 .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
+                .filter {
+                    it.playbackPositionTicks >
+                        JellyfinRepository.MIN_RESUME_PLAYBACK_POSITION_TICKS
+                }
         }
 
     override suspend fun getLatestMedia(parentId: UUID): List<FindroidItem> =

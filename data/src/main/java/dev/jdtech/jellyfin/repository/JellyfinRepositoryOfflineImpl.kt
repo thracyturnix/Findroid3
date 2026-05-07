@@ -144,12 +144,18 @@ class JellyfinRepositoryOfflineImpl(
                 database
                     .getMoviesByServerId(appPreferences.getValue(appPreferences.currentServer)!!)
                     .map { it.toFindroidMovie(database, jellyfinApi.userId!!) }
-                    .filter { it.playbackPositionTicks > 0 }
+                    .filter {
+                        it.playbackPositionTicks >
+                            JellyfinRepository.MIN_RESUME_PLAYBACK_POSITION_TICKS
+                    }
             val episodes =
                 database
                     .getEpisodesByServerId(appPreferences.getValue(appPreferences.currentServer)!!)
                     .map { it.toFindroidEpisode(database, jellyfinApi.userId!!) }
-                    .filter { it.playbackPositionTicks > 0 }
+                    .filter {
+                        it.playbackPositionTicks >
+                            JellyfinRepository.MIN_RESUME_PLAYBACK_POSITION_TICKS
+                    }
             movies + episodes
         }
     }

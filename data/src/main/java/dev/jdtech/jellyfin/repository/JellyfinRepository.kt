@@ -21,6 +21,10 @@ import org.jellyfin.sdk.model.api.PublicSystemInfo
 import org.jellyfin.sdk.model.api.UserConfiguration
 
 interface JellyfinRepository {
+    companion object {
+        const val MIN_RESUME_PLAYBACK_POSITION_TICKS = 2 * 60 * 10_000_000L
+    }
+
     suspend fun getPublicSystemInfo(): PublicSystemInfo
 
     suspend fun getUserViews(): List<BaseItemDto>
