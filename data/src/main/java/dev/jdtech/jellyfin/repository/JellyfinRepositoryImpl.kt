@@ -133,6 +133,7 @@ class JellyfinRepositoryImpl(
                     parentId = parentId,
                     includeItemTypes = includeTypes,
                     recursive = recursive,
+                    fields = itemCountFields,
                     filters = listOfNotNull(if (isUnplayed) ItemFilter.IS_UNPLAYED else null),
                     sortBy = listOf(ItemSortBy.fromName(sortBy.sortString)),
                     sortOrder = listOf(ItemSortOrder.fromName(sortOrder.sortString)),
@@ -189,6 +190,7 @@ class JellyfinRepositoryImpl(
                     personIds = personIds,
                     includeItemTypes = includeTypes,
                     recursive = recursive,
+                    fields = itemCountFields,
                 )
                 .content
                 .items
@@ -203,6 +205,7 @@ class JellyfinRepositoryImpl(
                     filters = listOf(ItemFilter.IS_FAVORITE),
                     includeItemTypes =
                         listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES, BaseItemKind.EPISODE),
+                    fields = itemCountFields,
                     recursive = true,
                 )
                 .content
@@ -217,6 +220,7 @@ class JellyfinRepositoryImpl(
                     jellyfinApi.userId!!,
                     searchTerm = query,
                     includeItemTypes = listOf(BaseItemKind.MOVIE, BaseItemKind.SERIES),
+                    fields = itemCountFields,
                     recursive = true,
                 )
                 .content
@@ -582,5 +586,9 @@ class JellyfinRepositoryImpl(
 
     override fun getUserId(): UUID {
         return jellyfinApi.userId!!
+    }
+
+    private companion object {
+        val itemCountFields = listOf(ItemFields.ITEM_COUNTS, ItemFields.RECURSIVE_ITEM_COUNT)
     }
 }
