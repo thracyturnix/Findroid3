@@ -7,15 +7,12 @@ Findroid3 is a fork of [Findroid](https://github.com/jarnedemeulemeester/findroi
 This fork contains custom changes that are not present in upstream. It should be treated as a modified branch of the original project, not as the canonical upstream repository.
 
 ## Fork Notes
-- Renamed app branding to `Findroid3`.
 - Added capacity to "Hide Watched" in libraries
-- Toggle Hide Watched on and off for each library
 - Select individual items (long press) to mark as watched or unwatched within any library
-- Added fork-specific phone UI changes, including a top home-screen libraries matrix for quick selection.
-- Reconfigured home screen
-- Enabled "start as default" feature so app will start in specified library (instead of Home) 
+- Phone UI changes, including a top home-screen libraries matrix for quick selection.
+- Enabled "start as default" feature so app will start every time in preferred library (instead of Home) 
 - MPV default
-- camera cutout avoidance allows display to display withouth showing the 'hole' of the camera
+- camera cutout avoidance allows display to display withoutt showing the 'hole' of the camera
 - Fixed watched-state persistence
 
 
