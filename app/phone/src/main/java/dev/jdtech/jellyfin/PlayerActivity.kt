@@ -549,18 +549,43 @@ class PlayerActivity : BasePlayerActivity() {
         val cutout = binding.root.rootWindowInsets?.displayCutout ?: return CutoutAdjustment.NONE
         val unsafeLeft = cutoutUnsafeLeft(width, cutout.safeInsetLeft, cutout.boundingRects)
         val unsafeRight = cutoutUnsafeRight(width, cutout.safeInsetRight, cutout.boundingRects)
-        if (unsafeLeft == 0 && unsafeRight == 0) return CutoutAdjustment.NONE
+        if (unsafeLeft == 0 && unsafeRight == 0) {
+            logCameraCutoutDecision(
+                width = width,
+                height = height,
+                videoSize = videoSize,
+                cutout = cutout,
+                videoRect = null,
+                adjustment = CutoutAdjustment.NONE,
+                reason = "no unsafe horizontal cutout",
+            )
+            return CutoutAdjustment.NONE
+        }
 
         val videoRect = fittedVideoRect(width, height, videoSize)
         val avoidLeft = unsafeLeft > 0 && videoRect.left < unsafeLeft
         val avoidRight = unsafeRight > 0 && videoRect.right > width - unsafeRight
-        if (!avoidLeft && !avoidRight) return CutoutAdjustment.NONE
+        if (!avoidLeft && !avoidRight) {
+            val adjustment = CutoutAdjustment.NONE
+            logCameraCutoutDecision(
+                width = width,
+                height = height,
+                videoSize = videoSize,
+                cutout = cutout,
+                videoRect = videoRect,
+                adjustment = adjustment,
+                reason = "video clear of cutout",
+            )
+            return adjustment
+        }
 
-        return when {
+        val adjustment =
+            when {
             avoidLeft && avoidRight ->
                 CutoutAdjustment(
                     paddingLeft = unsafeLeft,
                     paddingRight = unsafeRight,
+                    strategy = "shrink both",
                     gravity = Gravity.CENTER,
                 )
 
@@ -568,10 +593,11 @@ class PlayerActivity : BasePlayerActivity() {
                 val shiftNeeded = unsafeLeft - videoRect.left
                 val availableRightLetterbox = width - videoRect.right
                 if (shiftNeeded <= availableRightLetterbox) {
-                    CutoutAdjustment(translationX = shiftNeeded)
+                    CutoutAdjustment(translationX = shiftNeeded, strategy = "shift right")
                 } else {
                     CutoutAdjustment(
                         paddingLeft = unsafeLeft,
+                        strategy = "shrink anchor right",
                         gravity = Gravity.END or Gravity.CENTER_VERTICAL,
                     )
                 }
@@ -581,10 +607,11 @@ class PlayerActivity : BasePlayerActivity() {
                 val shiftNeeded = videoRect.right - (width - unsafeRight)
                 val availableLeftLetterbox = videoRect.left
                 if (shiftNeeded <= availableLeftLetterbox) {
-                    CutoutAdjustment(translationX = -shiftNeeded)
+                    CutoutAdjustment(translationX = -shiftNeeded, strategy = "shift left")
                 } else {
                     CutoutAdjustment(
                         paddingRight = unsafeRight,
+                        strategy = "shrink anchor left",
                         gravity = Gravity.START or Gravity.CENTER_VERTICAL,
                     )
                 }
@@ -592,6 +619,48 @@ class PlayerActivity : BasePlayerActivity() {
 
             else -> CutoutAdjustment.NONE
         }
+
+        logCameraCutoutDecision(
+            width = width,
+            height = height,
+            videoSize = videoSize,
+            cutout = cutout,
+            videoRect = videoRect,
+            adjustment = adjustment,
+            reason = "video overlaps cutout",
+        )
+        return adjustment
+    }
+
+    private fun logCameraCutoutDecision(
+        width: Int,
+        height: Int,
+        videoSize: VideoSize,
+        cutout: android.view.DisplayCutout,
+        videoRect: RectF?,
+        adjustment: CutoutAdjustment,
+        reason: String,
+    ) {
+        Timber.d(
+            "Camera cutout avoidance: reason=%s, strategy=%s, player=%dx%d, video=%dx%d par=%.3f, safeInsets=[l=%d,t=%d,r=%d,b=%d], bounds=%s, videoRect=%s, padding=[l=%d,r=%d], translationX=%.1f, gravity=%d",
+            reason,
+            adjustment.strategy,
+            width,
+            height,
+            videoSize.width,
+            videoSize.height,
+            videoSize.pixelWidthHeightRatio,
+            cutout.safeInsetLeft,
+            cutout.safeInsetTop,
+            cutout.safeInsetRight,
+            cutout.safeInsetBottom,
+            cutout.boundingRects.joinToString(),
+            videoRect,
+            adjustment.paddingLeft,
+            adjustment.paddingRight,
+            adjustment.translationX,
+            adjustment.gravity,
+        )
     }
 
     private fun fittedVideoRect(width: Int, height: Int, videoSize: VideoSize): RectF {
@@ -635,6 +704,7 @@ class PlayerActivity : BasePlayerActivity() {
         val paddingLeft: Int = 0,
         val paddingRight: Int = 0,
         val translationX: Float = 0f,
+        val strategy: String = "none",
         val gravity: Int = Gravity.CENTER,
     ) {
         companion object {
