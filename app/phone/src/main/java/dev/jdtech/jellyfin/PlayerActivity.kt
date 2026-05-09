@@ -66,6 +66,8 @@ class PlayerActivity : BasePlayerActivity() {
     private var wasZoom: Boolean = false
     private var skipButtonTimeoutExpired: Boolean = true
     private var cutoutAvoidanceEnabled: Boolean = false
+    private var hasCurrentSegment: Boolean = false
+    private var cameraCutoutDiagnostic: String = "Cutout: waiting for video"
 
     private lateinit var skipSegmentButton: Button
 
@@ -120,14 +122,6 @@ class PlayerActivity : BasePlayerActivity() {
             updateCameraCutoutAvoidance()
             windowInsets
         }
-        binding.playerView.setControllerVisibilityListener(
-            PlayerView.ControllerVisibilityListener { visibility ->
-                if (visibility == View.GONE) {
-                    hideSystemUI()
-                }
-            }
-        )
-
         val playerControls = binding.playerView.findViewById<View>(R.id.player_controls)
         val lockedControls = binding.playerView.findViewById<View>(R.id.locked_player_view)
 
@@ -159,6 +153,11 @@ class PlayerActivity : BasePlayerActivity() {
         val pipButton = binding.playerView.findViewById<ImageButton>(R.id.btn_pip)
         val lockButton = binding.playerView.findViewById<ImageButton>(R.id.btn_lockview)
         val unlockButton = binding.playerView.findViewById<ImageButton>(R.id.btn_unlock)
+        binding.playerView.setControllerVisibilityListener(
+            PlayerView.ControllerVisibilityListener { visibility ->
+                handleControllerVisibilityChanged(visibility)
+            }
+        )
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -170,6 +169,7 @@ class PlayerActivity : BasePlayerActivity() {
                             videoNameTextView.text = currentItemTitle
 
                             // Media segment
+                            hasCurrentSegment = currentSegment != null
                             currentSegment?.let { segment ->
                                 // Skip Button - text
                                 skipSegmentButton.text = getString(currentSkipButtonStringRes)
@@ -189,14 +189,6 @@ class PlayerActivity : BasePlayerActivity() {
                                     skipSegmentButton.isVisible = false
                                 }
                             } ?: run { skipSegmentButton.isVisible = false }
-
-                            binding.playerView.setControllerVisibilityListener(
-                                PlayerView.ControllerVisibilityListener { visibility ->
-                                    if (skipButtonTimeoutExpired && currentSegment != null) {
-                                        skipSegmentButton.visibility = visibility
-                                    }
-                                }
-                            )
 
                             // Trickplay
                             previewScrubListener?.let { it.currentTrickplay = currentTrickplay }
@@ -507,10 +499,17 @@ class PlayerActivity : BasePlayerActivity() {
             if (cutoutAvoidanceEnabled && !isInPictureInPictureMode) {
                 calculateCameraCutoutAdjustment()
             } else {
+                cameraCutoutDiagnostic =
+                    if (isInPictureInPictureMode) {
+                        "Cutout: inactive (picture-in-picture)"
+                    } else {
+                        "Cutout: disabled"
+                    }
                 CutoutAdjustment.NONE
             }
 
         applyCameraCutoutAdjustment(adjustment)
+        updateCameraCutoutDebugOverlay()
     }
 
     private fun applyCameraCutoutAdjustment(adjustment: CutoutAdjustment) {
@@ -535,18 +534,51 @@ class PlayerActivity : BasePlayerActivity() {
         }
     }
 
+    private fun handleControllerVisibilityChanged(visibility: Int) {
+        if (visibility == View.GONE) {
+            hideSystemUI()
+        }
+
+        if (skipButtonTimeoutExpired && hasCurrentSegment) {
+            skipSegmentButton.visibility = visibility
+        }
+        updateCameraCutoutDebugOverlay()
+    }
+
+    private fun updateCameraCutoutDebugOverlay() {
+        if (!::binding.isInitialized) return
+
+        binding.cameraCutoutDebugText.text = cameraCutoutDiagnostic
+        binding.cameraCutoutDebugText.isVisible =
+            cutoutAvoidanceEnabled &&
+                !isInPictureInPictureMode &&
+                binding.playerView.isControllerFullyVisible
+    }
+
     private fun calculateCameraCutoutAdjustment(): CutoutAdjustment {
         val playerView = binding.playerView
         val width = playerView.width
         val height = playerView.height
-        if (width <= height || width == 0 || height == 0) return CutoutAdjustment.NONE
-
-        val videoSize = viewModel.player.videoSize
-        if (videoSize == VideoSize.UNKNOWN || videoSize.width <= 0 || videoSize.height <= 0) {
+        if (width <= height || width == 0 || height == 0) {
+            cameraCutoutDiagnostic = "Cutout: inactive (portrait or no player size)"
             return CutoutAdjustment.NONE
         }
 
-        val cutout = binding.root.rootWindowInsets?.displayCutout ?: return CutoutAdjustment.NONE
+        val videoSize = viewModel.player.videoSize
+        if (videoSize == VideoSize.UNKNOWN || videoSize.width <= 0 || videoSize.height <= 0) {
+            cameraCutoutDiagnostic = "Cutout: waiting for video size"
+            return CutoutAdjustment.NONE
+        }
+
+        val cutout =
+            binding.root.rootWindowInsets?.displayCutout
+                ?: run {
+                    cameraCutoutDiagnostic =
+                        "Cutout: no display cutout\n" +
+                            "Video: ${videoSize.width}x${videoSize.height} par %.2f, player ${width}x$height"
+                                .format(videoSize.pixelWidthHeightRatio)
+                    return CutoutAdjustment.NONE
+                }
         val unsafeLeft = cutoutUnsafeLeft(width, cutout.safeInsetLeft, cutout.boundingRects)
         val unsafeRight = cutoutUnsafeRight(width, cutout.safeInsetRight, cutout.boundingRects)
         if (unsafeLeft == 0 && unsafeRight == 0) {
@@ -641,6 +673,17 @@ class PlayerActivity : BasePlayerActivity() {
         adjustment: CutoutAdjustment,
         reason: String,
     ) {
+        cameraCutoutDiagnostic =
+            "Cutout: ${adjustment.strategy} ($reason)\n" +
+                "Video: ${videoSize.width}x${videoSize.height} par %.2f, player ${width}x$height\n"
+                    .format(videoSize.pixelWidthHeightRatio) +
+                "Unsafe: L${
+                    cutoutUnsafeLeft(width, cutout.safeInsetLeft, cutout.boundingRects)
+                } R${
+                    cutoutUnsafeRight(width, cutout.safeInsetRight, cutout.boundingRects)
+                }, pad L${adjustment.paddingLeft} R${adjustment.paddingRight}, shift %.1f"
+                    .format(adjustment.translationX)
+
         Timber.d(
             "Camera cutout avoidance: reason=%s, strategy=%s, player=%dx%d, video=%dx%d par=%.3f, safeInsets=[l=%d,t=%d,r=%d,b=%d], bounds=%s, videoRect=%s, padding=[l=%d,r=%d], translationX=%.1f, gravity=%d",
             reason,
