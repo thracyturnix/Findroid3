@@ -11,10 +11,9 @@ This fork contains custom changes that are not present in upstream. It should be
 - Select individual items (long press) to mark as watched or unwatched within any library
 - Phone UI changes, including a top home-screen libraries matrix for quick selection.
 - Enabled "start as default" feature so app will start every time in preferred library (instead of Home) 
-- MPV default
-- camera cutout avoidance allows display to display withoutt showing the 'hole' of the camera
-- Fixed watched-state persistence
-
+- MPV set to default
+- Display mod to bypass 'hole' of the camera
+- Fixed watched-state persistence (broken)
 
 ## Upstream
 The upstream project remains [jarnedemeulemeester/findroid](https://github.com/jarnedemeulemeester/findroid). Upstream documentation, release information, and community links may not match the exact state of this fork.
