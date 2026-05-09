@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import android.util.Rational
+import android.view.Gravity
 import android.view.SurfaceView
 import android.view.View
 import android.view.WindowManager
@@ -502,45 +503,95 @@ class PlayerActivity : BasePlayerActivity() {
     private fun updateCameraCutoutAvoidance() {
         if (!::binding.isInitialized) return
 
-        val padding =
+        val adjustment =
             if (cutoutAvoidanceEnabled && !isInPictureInPictureMode) {
-                calculateCameraCutoutAvoidancePadding()
+                calculateCameraCutoutAdjustment()
             } else {
-                CutoutPadding.NONE
+                CutoutAdjustment.NONE
             }
 
+        applyCameraCutoutAdjustment(adjustment)
+    }
+
+    private fun applyCameraCutoutAdjustment(adjustment: CutoutAdjustment) {
         if (
-            binding.playerView.paddingLeft != padding.left ||
-                binding.playerView.paddingRight != padding.right
+            binding.playerView.paddingLeft != adjustment.paddingLeft ||
+                binding.playerView.paddingRight != adjustment.paddingRight
         ) {
-            binding.playerView.setPadding(padding.left, 0, padding.right, 0)
+            binding.playerView.setPadding(adjustment.paddingLeft, 0, adjustment.paddingRight, 0)
+        }
+
+        val contentFrame =
+            binding.playerView.findViewById<View>(androidx.media3.ui.R.id.exo_content_frame)
+                ?: return
+        if (contentFrame.translationX != adjustment.translationX) {
+            contentFrame.translationX = adjustment.translationX
+        }
+
+        val layoutParams = contentFrame.layoutParams as? FrameLayout.LayoutParams ?: return
+        if (layoutParams.gravity != adjustment.gravity) {
+            layoutParams.gravity = adjustment.gravity
+            contentFrame.layoutParams = layoutParams
         }
     }
 
-    private fun calculateCameraCutoutAvoidancePadding(): CutoutPadding {
+    private fun calculateCameraCutoutAdjustment(): CutoutAdjustment {
         val playerView = binding.playerView
         val width = playerView.width
         val height = playerView.height
-        if (width <= height || width == 0 || height == 0) return CutoutPadding.NONE
+        if (width <= height || width == 0 || height == 0) return CutoutAdjustment.NONE
 
         val videoSize = viewModel.player.videoSize
         if (videoSize == VideoSize.UNKNOWN || videoSize.width <= 0 || videoSize.height <= 0) {
-            return CutoutPadding.NONE
+            return CutoutAdjustment.NONE
         }
 
-        val cutout = binding.root.rootWindowInsets?.displayCutout ?: return CutoutPadding.NONE
+        val cutout = binding.root.rootWindowInsets?.displayCutout ?: return CutoutAdjustment.NONE
         val unsafeLeft = cutoutUnsafeLeft(width, cutout.safeInsetLeft, cutout.boundingRects)
         val unsafeRight = cutoutUnsafeRight(width, cutout.safeInsetRight, cutout.boundingRects)
-        if (unsafeLeft == 0 && unsafeRight == 0) return CutoutPadding.NONE
+        if (unsafeLeft == 0 && unsafeRight == 0) return CutoutAdjustment.NONE
 
         val videoRect = fittedVideoRect(width, height, videoSize)
         val avoidLeft = unsafeLeft > 0 && videoRect.left < unsafeLeft
         val avoidRight = unsafeRight > 0 && videoRect.right > width - unsafeRight
+        if (!avoidLeft && !avoidRight) return CutoutAdjustment.NONE
 
-        return CutoutPadding(
-            left = if (avoidLeft) unsafeLeft else 0,
-            right = if (avoidRight) unsafeRight else 0,
-        )
+        return when {
+            avoidLeft && avoidRight ->
+                CutoutAdjustment(
+                    paddingLeft = unsafeLeft,
+                    paddingRight = unsafeRight,
+                    gravity = Gravity.CENTER,
+                )
+
+            avoidLeft -> {
+                val shiftNeeded = unsafeLeft - videoRect.left
+                val availableRightLetterbox = width - videoRect.right
+                if (shiftNeeded <= availableRightLetterbox) {
+                    CutoutAdjustment(translationX = shiftNeeded)
+                } else {
+                    CutoutAdjustment(
+                        paddingLeft = unsafeLeft,
+                        gravity = Gravity.END or Gravity.CENTER_VERTICAL,
+                    )
+                }
+            }
+
+            avoidRight -> {
+                val shiftNeeded = videoRect.right - (width - unsafeRight)
+                val availableLeftLetterbox = videoRect.left
+                if (shiftNeeded <= availableLeftLetterbox) {
+                    CutoutAdjustment(translationX = -shiftNeeded)
+                } else {
+                    CutoutAdjustment(
+                        paddingRight = unsafeRight,
+                        gravity = Gravity.START or Gravity.CENTER_VERTICAL,
+                    )
+                }
+            }
+
+            else -> CutoutAdjustment.NONE
+        }
     }
 
     private fun fittedVideoRect(width: Int, height: Int, videoSize: VideoSize): RectF {
@@ -580,9 +631,14 @@ class PlayerActivity : BasePlayerActivity() {
         return maxOf(safeInsetRight, cutoutBounds)
     }
 
-    private data class CutoutPadding(val left: Int, val right: Int) {
+    private data class CutoutAdjustment(
+        val paddingLeft: Int = 0,
+        val paddingRight: Int = 0,
+        val translationX: Float = 0f,
+        val gravity: Int = Gravity.CENTER,
+    ) {
         companion object {
-            val NONE = CutoutPadding(0, 0)
+            val NONE = CutoutAdjustment()
         }
     }
 
