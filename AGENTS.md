@@ -11,6 +11,11 @@ screen build note up to date.
 - The phone About screen displays this value through `BuildConfig.FORK_BUILD`.
 - Do not commit feature or fix changes without the corresponding fork build update.
 
+## README Ownership
+
+Do not edit, stage, commit, or push `README.md`. The user owns all README changes
+and will edit that file directly.
+
 ## Upstream Maintenance
 
 When updating this fork from `upstream/main`, preserve the fork features unless
