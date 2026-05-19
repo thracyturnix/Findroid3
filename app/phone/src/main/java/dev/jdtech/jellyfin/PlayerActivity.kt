@@ -509,7 +509,6 @@ class PlayerActivity : BasePlayerActivity() {
             }
 
         applyCameraCutoutAdjustment(adjustment)
-        updateCameraCutoutDebugOverlay()
     }
 
     private fun applyCameraCutoutAdjustment(adjustment: CutoutAdjustment) {
@@ -542,17 +541,6 @@ class PlayerActivity : BasePlayerActivity() {
         if (skipButtonTimeoutExpired && hasCurrentSegment) {
             skipSegmentButton.visibility = visibility
         }
-        updateCameraCutoutDebugOverlay()
-    }
-
-    private fun updateCameraCutoutDebugOverlay() {
-        if (!::binding.isInitialized) return
-
-        binding.cameraCutoutDebugText.text = cameraCutoutDiagnostic
-        binding.cameraCutoutDebugText.isVisible =
-            cutoutAvoidanceEnabled &&
-                !isInPictureInPictureMode &&
-                binding.playerView.isControllerFullyVisible
     }
 
     private fun calculateCameraCutoutAdjustment(): CutoutAdjustment {
