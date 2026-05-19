@@ -158,9 +158,6 @@ class MPVPlayer(
         mpvLib.setOptionString("ao", audioOutput)
         mpvLib.setOptionString("gpu-context", "android")
         mpvLib.setOptionString("opengl-es", "yes")
-        mpvLib.setOptionString("osd-level", "0")
-        mpvLib.setOptionString("osd-playing-msg", "")
-        mpvLib.setOptionString("osd-status-msg", "")
 
         // Hardware video decoding
         mpvLib.setOptionString("hwdec", hwDec)
