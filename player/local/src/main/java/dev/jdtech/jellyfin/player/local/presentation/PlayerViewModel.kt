@@ -12,13 +12,16 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.TrackGroup
 import androidx.media3.common.TrackSelectionOverride
+import androidx.media3.common.Tracks
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dev.jdtech.jellyfin.models.FindroidSegment
 import dev.jdtech.jellyfin.models.FindroidSegmentType
+import dev.jdtech.jellyfin.player.core.domain.models.ExternalSubtitle
 import dev.jdtech.jellyfin.player.core.domain.models.PlayerChapter
 import dev.jdtech.jellyfin.player.core.domain.models.PlayerItem
 import dev.jdtech.jellyfin.player.core.domain.models.Trickplay
@@ -66,6 +69,7 @@ constructor(
                 currentTrickplay = null,
                 currentChapters = emptyList(),
                 fileLoaded = false,
+                hasSubtitleTracks = false,
             )
         )
     val uiState = _uiState.asStateFlow()
@@ -80,6 +84,7 @@ constructor(
         val currentTrickplay: Trickplay?,
         val currentChapters: List<PlayerChapter>,
         val fileLoaded: Boolean,
+        val hasSubtitleTracks: Boolean,
     )
 
     private var items: MutableList<PlayerItem> = mutableListOf()
@@ -101,6 +106,9 @@ constructor(
     var playbackSpeed: Float = 1f
 
     var isInPictureInPictureMode: Boolean = false
+
+    private var smartSubtitleSelectionMediaId: String? = null
+    private var hasManualSubtitleSelection = false
 
     init {
         segmentsSkipButton = appPreferences.getValue(appPreferences.playerMediaSegmentsSkipButton)
@@ -220,11 +228,11 @@ constructor(
         val mediaSubtitles =
             externalSubtitles.map { externalSubtitle ->
                 MediaItem.SubtitleConfiguration.Builder(externalSubtitle.uri)
-                    .setLabel(
-                        externalSubtitle.title.ifBlank { application.getString(R.string.external) }
-                    )
+                    .setLabel(externalSubtitle.trackLabel())
                     .setMimeType(externalSubtitle.mimeType)
                     .setLanguage(externalSubtitle.language)
+                    .setSelectionFlags(externalSubtitle.selectionFlags())
+                    .setRoleFlags(externalSubtitle.roleFlags())
                     .build()
             }
 
@@ -238,6 +246,25 @@ constructor(
                 .build()
 
         return mediaItem
+    }
+
+    private fun ExternalSubtitle.trackLabel(): String {
+        return title.ifBlank { application.getString(R.string.external) }
+    }
+
+    private fun ExternalSubtitle.selectionFlags(): Int {
+        return (if (isDefault) C.SELECTION_FLAG_DEFAULT else 0) or
+            (if (isForced) C.SELECTION_FLAG_FORCED else 0)
+    }
+
+    private fun ExternalSubtitle.roleFlags(): Int {
+        return if (isHearingImpaired) {
+            C.ROLE_FLAG_CAPTION or
+                C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND or
+                C.ROLE_FLAG_TRANSCRIBES_DIALOG
+        } else {
+            0
+        }
     }
 
     @OptIn(DelicateCoroutinesApi::class)
@@ -339,6 +366,8 @@ constructor(
     override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
         Timber.d("Playing MediaItem: ${mediaItem?.mediaId}")
         savedStateHandle["mediaItemIndex"] = player.currentMediaItemIndex
+        smartSubtitleSelectionMediaId = null
+        hasManualSubtitleSelection = false
         viewModelScope.launch {
             try {
                 items
@@ -360,6 +389,7 @@ constructor(
                                 currentSegment = null,
                                 currentChapters = item.chapters,
                                 fileLoaded = false,
+                                hasSubtitleTracks = false,
                             )
                         }
 
@@ -448,15 +478,33 @@ constructor(
         Timber.d("Changed player state to $stateString")
     }
 
+    override fun onTracksChanged(tracks: Tracks) {
+        _uiState.update {
+            it.copy(
+                hasSubtitleTracks =
+                    tracks.groups.any { group ->
+                        group.type == C.TRACK_TYPE_TEXT && group.isSupported
+                    }
+            )
+        }
+        applySmartSubtitleSelection(tracks)
+    }
+
     override fun onCleared() {
         super.onCleared()
         Timber.d("Clearing Player ViewModel")
         releasePlayer()
     }
 
-    fun switchToTrack(trackType: @C.TrackType Int, index: Int) {
-        // Index -1 equals disable track
-        if (index == -1) {
+    fun switchToTrack(trackType: @C.TrackType Int, trackGroup: TrackGroup?) {
+        if (trackType == C.TRACK_TYPE_TEXT) {
+            hasManualSubtitleSelection = true
+        }
+        selectTrack(trackType, trackGroup)
+    }
+
+    private fun selectTrack(trackType: @C.TrackType Int, trackGroup: TrackGroup?) {
+        if (trackGroup == null) {
             player.trackSelectionParameters =
                 player.trackSelectionParameters
                     .buildUpon()
@@ -469,15 +517,138 @@ constructor(
                     .buildUpon()
                     .setOverrideForType(
                         TrackSelectionOverride(
-                            player.currentTracks.groups
-                                .filter { it.type == trackType && it.isSupported }[index]
-                                .mediaTrackGroup,
+                            trackGroup,
                             0,
                         )
                     )
                     .setTrackTypeDisabled(trackType, false)
                     .build()
         }
+    }
+
+    private fun applySmartSubtitleSelection(tracks: Tracks) {
+        val mediaId = player.currentMediaItem?.mediaId ?: return
+        if (hasManualSubtitleSelection || smartSubtitleSelectionMediaId == mediaId) return
+
+        val item = items.firstOrNull { it.itemId.toString() == mediaId } ?: return
+
+        val subtitleGroups = tracks.groups.filter { it.type == C.TRACK_TYPE_TEXT && it.isSupported }
+        if (subtitleGroups.isEmpty()) return
+        val englishSubtitleGroups = subtitleGroups.filter { it.isEnglishSubtitle() }
+
+        when (item.showSubtitleMode()) {
+            Constants.ShowSubtitleMode.OFF -> {
+                smartSubtitleSelectionMediaId = mediaId
+                selectTrack(C.TRACK_TYPE_TEXT, null)
+                return
+            }
+            Constants.ShowSubtitleMode.ENGLISH -> {
+                selectEnglishSubtitle(mediaId, englishSubtitleGroups, forced = false)
+                return
+            }
+            Constants.ShowSubtitleMode.ENGLISH_FORCED -> {
+                selectEnglishSubtitle(mediaId, englishSubtitleGroups, forced = true)
+                return
+            }
+        }
+
+        if (englishSubtitleGroups.isEmpty()) return
+
+        val primaryAudioLanguage = item.primaryAudioLanguage
+        if (primaryAudioLanguage.isNullOrBlank()) return
+
+        if (primaryAudioLanguage.isEnglishLanguage()) {
+            smartSubtitleSelectionMediaId = mediaId
+            selectTrack(
+                C.TRACK_TYPE_TEXT,
+                englishSubtitleGroups
+                    .filter { it.isForcedSubtitle() }
+                    .sortedWith(subtitlePreferenceComparator())
+                    .firstOrNull()
+                    ?.mediaTrackGroup,
+            )
+            return
+        }
+
+        val targetGroup =
+            englishSubtitleGroups
+                .filterNot { it.isForcedSubtitle() }
+                .ifEmpty { englishSubtitleGroups }
+                .sortedWith(subtitlePreferenceComparator())
+                .firstOrNull()
+                ?: return
+
+        smartSubtitleSelectionMediaId = mediaId
+        selectTrack(C.TRACK_TYPE_TEXT, targetGroup.mediaTrackGroup)
+    }
+
+    private fun PlayerItem.showSubtitleMode(): String {
+        val showId = seriesId ?: return Constants.ShowSubtitleMode.AUTO
+        return appPreferences.getValue(appPreferences.showSubtitleMode(showId.toString()))
+    }
+
+    private fun selectEnglishSubtitle(
+        mediaId: String,
+        englishSubtitleGroups: List<Tracks.Group>,
+        forced: Boolean,
+    ) {
+        val targetGroup =
+            if (forced) {
+                englishSubtitleGroups
+                    .filter { it.isForcedSubtitle() }
+                    .sortedWith(subtitlePreferenceComparator())
+                    .firstOrNull()
+            } else {
+                englishSubtitleGroups
+                    .filterNot { it.isForcedSubtitle() }
+                    .ifEmpty { englishSubtitleGroups }
+                    .sortedWith(subtitlePreferenceComparator())
+                    .firstOrNull()
+            }
+
+        smartSubtitleSelectionMediaId = mediaId
+        selectTrack(C.TRACK_TYPE_TEXT, targetGroup?.mediaTrackGroup)
+    }
+
+    private fun subtitlePreferenceComparator(): Comparator<Tracks.Group> {
+        return compareBy<Tracks.Group> { it.isForcedSubtitle() }
+            .thenBy { it.isSdhSubtitle() }
+            .thenBy { !it.isDefaultSubtitle() }
+    }
+
+    private fun Tracks.Group.isEnglishSubtitle(): Boolean {
+        val format = mediaTrackGroup.getFormat(0)
+        return format.language.isEnglishLanguage() ||
+            format.label.orEmpty().contains("english", ignoreCase = true)
+    }
+
+    private fun Tracks.Group.isDefaultSubtitle(): Boolean {
+        return (mediaTrackGroup.getFormat(0).selectionFlags and C.SELECTION_FLAG_DEFAULT) != 0
+    }
+
+    private fun Tracks.Group.isForcedSubtitle(): Boolean {
+        val format = mediaTrackGroup.getFormat(0)
+        return (format.selectionFlags and C.SELECTION_FLAG_FORCED) != 0 ||
+            format.label.orEmpty().contains("forced", ignoreCase = true)
+    }
+
+    private fun Tracks.Group.isSdhSubtitle(): Boolean {
+        val format = mediaTrackGroup.getFormat(0)
+        val sdhRoleFlags =
+            C.ROLE_FLAG_CAPTION or
+                C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND or
+                C.ROLE_FLAG_TRANSCRIBES_DIALOG
+        val label = format.label.orEmpty()
+        return (format.roleFlags and sdhRoleFlags) != 0 ||
+            label.contains("sdh", ignoreCase = true) ||
+            label.contains("hearing impaired", ignoreCase = true) ||
+            label.contains("closed caption", ignoreCase = true)
+    }
+
+    private fun String?.isEnglishLanguage(): Boolean {
+        val normalized = this?.trim()?.lowercase()?.replace('_', '-') ?: return false
+        val primaryLanguage = normalized.substringBefore("-")
+        return primaryLanguage == "en" || primaryLanguage == "eng" || primaryLanguage == "english"
     }
 
     fun selectSpeed(speed: Float) {

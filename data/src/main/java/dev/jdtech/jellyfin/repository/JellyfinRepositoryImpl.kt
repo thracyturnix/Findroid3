@@ -343,6 +343,7 @@ class JellyfinRepositoryImpl(
                                     subtitleProfiles =
                                         listOf(
                                             SubtitleProfile("srt", SubtitleDeliveryMethod.EXTERNAL),
+                                            SubtitleProfile("vtt", SubtitleDeliveryMethod.EXTERNAL),
                                             SubtitleProfile("ass", SubtitleDeliveryMethod.EXTERNAL),
                                         ),
                                 ),

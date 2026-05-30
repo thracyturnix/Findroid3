@@ -217,8 +217,8 @@ class PlayerActivity : BasePlayerActivity() {
                                 audioButton.imageAlpha = 255
                                 lockButton.isEnabled = true
                                 lockButton.imageAlpha = 255
-                                subtitleButton.isEnabled = true
-                                subtitleButton.imageAlpha = 255
+                                subtitleButton.isEnabled = hasSubtitleTracks
+                                subtitleButton.imageAlpha = if (hasSubtitleTracks) 255 else 75
                                 speedButton.isEnabled = true
                                 speedButton.imageAlpha = 255
                                 pipButton.isEnabled = true
@@ -316,8 +316,10 @@ class PlayerActivity : BasePlayerActivity() {
         }
 
         subtitleButton.setOnClickListener {
-            TrackSelectionDialogFragment(C.TRACK_TYPE_TEXT, viewModel)
-                .show(supportFragmentManager, "trackselectiondialog")
+            if (viewModel.uiState.value.hasSubtitleTracks) {
+                TrackSelectionDialogFragment(C.TRACK_TYPE_TEXT, viewModel)
+                    .show(supportFragmentManager, "trackselectiondialog")
+            }
         }
 
         speedButton.setOnClickListener {

@@ -16,6 +16,8 @@ sealed interface ShowAction {
 
     data object UnmarkAsFavorite : ShowAction
 
+    data class SelectSubtitleMode(val mode: String) : ShowAction
+
     data object OnBackClick : ShowAction
 
     data object OnHomeClick : ShowAction

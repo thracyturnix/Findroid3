@@ -5,15 +5,19 @@ import android.os.Environment
 import android.os.StatFs
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalMinimumInteractiveComponentSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfo
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -26,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.window.core.layout.WindowSizeClass
@@ -38,6 +43,7 @@ import dev.jdtech.jellyfin.models.FindroidShow
 import dev.jdtech.jellyfin.models.isDownloaded
 import dev.jdtech.jellyfin.presentation.theme.FindroidTheme
 import dev.jdtech.jellyfin.presentation.theme.spacings
+import dev.jdtech.jellyfin.settings.domain.Constants
 
 @Composable
 fun ItemButtonsBar(
@@ -52,6 +58,8 @@ fun ItemButtonsBar(
     modifier: Modifier = Modifier,
     downloaderState: DownloaderState? = null,
     canPlay: Boolean = true,
+    showSubtitleMode: String? = null,
+    onShowSubtitleModeClick: (mode: String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val windowSizeClass = currentWindowAdaptiveInfo().windowSizeClass
@@ -70,6 +78,7 @@ fun ItemButtonsBar(
     var storageSelectionDialogOpen by remember { mutableStateOf(false) }
     var cancelDownloadDialogOpen by remember { mutableStateOf(false) }
     var deleteDownloadDialogOpen by remember { mutableStateOf(false) }
+    var subtitleMenuOpen by remember { mutableStateOf(false) }
 
     var selectedStorageIndex by remember { mutableIntStateOf(0) }
     var storageLocations = remember { context.getExternalFilesDirs(null) }
@@ -149,6 +158,63 @@ fun ItemButtonsBar(
                             Icon(
                                 painter = painterResource(CoreR.drawable.ic_heart),
                                 contentDescription = null,
+                            )
+                        }
+                    }
+                }
+                showSubtitleMode?.let { mode ->
+                    Box {
+                        FilledTonalIconButton(onClick = { subtitleMenuOpen = true }) {
+                            Icon(
+                                painter = painterResource(CoreR.drawable.ic_closed_caption),
+                                contentDescription = stringResource(CoreR.string.subtitle),
+                                tint =
+                                    if (mode == Constants.ShowSubtitleMode.AUTO) {
+                                        LocalContentColor.current
+                                    } else {
+                                        Color.Red
+                                    },
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = subtitleMenuOpen,
+                            onDismissRequest = { subtitleMenuOpen = false },
+                        ) {
+                            SubtitleModeMenuItem(
+                                text = stringResource(CoreR.string.subtitle_auto),
+                                mode = Constants.ShowSubtitleMode.AUTO,
+                                selectedMode = mode,
+                                onClick = {
+                                    onShowSubtitleModeClick(it)
+                                    subtitleMenuOpen = false
+                                },
+                            )
+                            SubtitleModeMenuItem(
+                                text = stringResource(CoreR.string.subtitle_off),
+                                mode = Constants.ShowSubtitleMode.OFF,
+                                selectedMode = mode,
+                                onClick = {
+                                    onShowSubtitleModeClick(it)
+                                    subtitleMenuOpen = false
+                                },
+                            )
+                            SubtitleModeMenuItem(
+                                text = stringResource(CoreR.string.subtitle_english),
+                                mode = Constants.ShowSubtitleMode.ENGLISH,
+                                selectedMode = mode,
+                                onClick = {
+                                    onShowSubtitleModeClick(it)
+                                    subtitleMenuOpen = false
+                                },
+                            )
+                            SubtitleModeMenuItem(
+                                text = stringResource(CoreR.string.subtitle_english_forced),
+                                mode = Constants.ShowSubtitleMode.ENGLISH_FORCED,
+                                selectedMode = mode,
+                                onClick = {
+                                    onShowSubtitleModeClick(it)
+                                    subtitleMenuOpen = false
+                                },
                             )
                         }
                     }
@@ -236,6 +302,24 @@ fun ItemButtonsBar(
             )
         }
     }
+}
+
+@Composable
+private fun SubtitleModeMenuItem(
+    text: String,
+    mode: String,
+    selectedMode: String,
+    onClick: (mode: String) -> Unit,
+) {
+    DropdownMenuItem(
+        text = {
+            Text(
+                text = text,
+                color = if (mode == selectedMode) Color.Red else LocalContentColor.current,
+            )
+        },
+        onClick = { onClick(mode) },
+    )
 }
 
 @Preview(showBackground = true)

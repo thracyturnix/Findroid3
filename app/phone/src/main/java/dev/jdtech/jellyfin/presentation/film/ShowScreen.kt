@@ -209,6 +209,10 @@ private fun ShowScreenLayout(state: ShowState, onAction: (ShowAction) -> Unit) {
                         onDownloadDeleteClick = {},
                         modifier = Modifier.fillMaxWidth(),
                         canPlay = state.seasons.isNotEmpty(),
+                        showSubtitleMode = state.subtitleMode,
+                        onShowSubtitleModeClick = { mode ->
+                            onAction(ShowAction.SelectSubtitleMode(mode))
+                        },
                     )
                     Spacer(Modifier.height(MaterialTheme.spacings.small))
                     OverviewText(text = show.overview, maxCollapsedLines = 3)

@@ -10,4 +10,7 @@ class ExternalSubtitle(
     val language: String,
     val uri: Uri,
     val mimeType: String,
+    val isDefault: Boolean,
+    val isForced: Boolean,
+    val isHearingImpaired: Boolean,
 ) : Parcelable

@@ -36,8 +36,7 @@ class TrackSelectionDialogFragment(
             ) { dialog, which ->
                 viewModel.switchToTrack(
                     type,
-                    which - 1, // Minus 1 to get the correct group without the "None" item. "None"
-                    // becomes -1
+                    tracksGroups.getOrNull(which - 1)?.mediaTrackGroup,
                 )
                 dialog.dismiss()
             }

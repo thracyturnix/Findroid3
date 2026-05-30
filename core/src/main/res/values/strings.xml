@@ -79,6 +79,10 @@
     <string name="audio">Audio</string>
     <string name="subtitle">Subtitles</string>
     <string name="subtitle_chip_text">CC</string>
+    <string name="subtitle_auto">Auto subtitles</string>
+    <string name="subtitle_off">Subtitles off</string>
+    <string name="subtitle_english">English subtitles</string>
+    <string name="subtitle_english_forced">English forced subtitles</string>
     <string name="temp">temp</string>
     <string name="offline_mode">Offline Mode</string>
     <string name="offline_mode_icon">Offline Mode icon</string>

@@ -1,5 +1,6 @@
 package dev.jdtech.jellyfin.models
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
@@ -14,6 +15,9 @@ data class FindroidMediaStreamDto(
     val language: String,
     val type: MediaStreamType,
     val codec: String,
+    @ColumnInfo(defaultValue = "0") val isDefault: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isForced: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isHearingImpaired: Boolean = false,
     val isExternal: Boolean,
     val path: String,
     val channelLayout: String?,
@@ -37,6 +41,9 @@ fun FindroidMediaStream.toFindroidMediaStreamDto(
         language = language,
         type = type,
         codec = codec,
+        isDefault = isDefault,
+        isForced = isForced,
+        isHearingImpaired = isHearingImpaired,
         isExternal = isExternal,
         path = path,
         channelLayout = channelLayout,

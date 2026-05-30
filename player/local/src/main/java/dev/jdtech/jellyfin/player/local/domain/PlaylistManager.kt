@@ -213,6 +213,12 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             } else {
                 mediaSources[mediaSourceIndex]
             }
+        val primaryAudioLanguage =
+            mediaSource.mediaStreams
+                .filter { it.type == MediaStreamType.AUDIO && it.language.isNotBlank() }
+                .sortedByDescending { it.isDefault }
+                .firstOrNull()
+                ?.language
         val externalSubtitles =
             mediaSource.mediaStreams
                 .filter { mediaStream ->
@@ -227,10 +233,13 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
                         mediaStream.path!!.toUri(),
                         when (mediaStream.codec) {
                             "subrip" -> MimeTypes.APPLICATION_SUBRIP
-                            "webvtt" -> MimeTypes.APPLICATION_SUBRIP
+                            "webvtt" -> MimeTypes.TEXT_VTT
                             "ass" -> MimeTypes.TEXT_SSA
                             else -> MimeTypes.TEXT_UNKNOWN
                         },
+                        mediaStream.isDefault,
+                        mediaStream.isForced,
+                        mediaStream.isHearingImpaired,
                     )
                 }
         val trickplayInfo =
@@ -255,6 +264,8 @@ class PlaylistManager @Inject internal constructor(private val repository: Jelly
             itemId = id,
             mediaSourceId = mediaSource.id,
             mediaSourceUri = mediaSource.path,
+            seriesId = if (this is FindroidEpisode) seriesId else null,
+            primaryAudioLanguage = primaryAudioLanguage,
             playbackPosition = playbackPosition,
             parentIndexNumber = if (this is FindroidEpisode) parentIndexNumber else null,
             indexNumber = if (this is FindroidEpisode) indexNumber else null,

@@ -85,6 +85,9 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Player - PiP
     val playerPipGesture = Preference("pref_player_picture_in_picture_gesture", false)
 
+    fun showSubtitleMode(showId: String) =
+        Preference("pref_show_subtitle_mode_$showId", Constants.ShowSubtitleMode.AUTO)
+
     // Downloads
     val downloadOverMobileData = Preference("pref_downloads_mobile_data", false)
     val downloadWhenRoaming = Preference("pref_downloads_roaming", false)

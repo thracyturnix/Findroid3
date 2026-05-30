@@ -201,7 +201,6 @@ class MPVPlayer(
             mpvLib.setOptionString("alang", it.split("-").last())
         }
         trackSelectionParameters.preferredTextLanguages.firstOrNull()?.let {
-            println(it.split("-").last())
             mpvLib.setOptionString("slang", it.split("-").last())
         }
 
@@ -1043,12 +1042,36 @@ class MPVPlayer(
         internalMediaItems.getOrNull(index)?.let { mediaItem ->
             resetInternalState()
             mediaItem.localConfiguration?.subtitleConfigurations?.forEach { subtitle ->
+                val titleParts =
+                    listOfNotNull(
+                        subtitle.label?.toString()?.ifBlank { null },
+                        if ((subtitle.selectionFlags and C.SELECTION_FLAG_DEFAULT) != 0) {
+                            "Default"
+                        } else {
+                            null
+                        },
+                        if ((subtitle.selectionFlags and C.SELECTION_FLAG_FORCED) != 0) {
+                            "Forced"
+                        } else {
+                            null
+                        },
+                        if (
+                            (subtitle.roleFlags and
+                                (C.ROLE_FLAG_CAPTION or
+                                    C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND or
+                                    C.ROLE_FLAG_TRANSCRIBES_DIALOG)) != 0
+                        ) {
+                            "SDH"
+                        } else {
+                            null
+                        },
+                    )
                 initialCommands.add(
                     arrayOf(
                         /* command= */ "sub-add",
                         /* url= */ "${subtitle.uri}",
                         /* flags= */ "auto",
-                        /* title= */ "${subtitle.label}",
+                        /* title= */ titleParts.joinToString(" - ").ifBlank { "External" },
                         /* lang= */ "${subtitle.language}",
                     )
                 )
@@ -1603,13 +1626,26 @@ class MPVPlayer(
             val trackType = MPVTrackType.entries.first { it.type == json.optString("type") }
 
             // Base format shared between video, audio and subtitles
+            val label =
+                json.optNullableString("title")
+                    ?: if (json.optBoolean("external")) "External" else null
             val baseFormat =
                 Format.Builder()
                     .setId(json.optInt("id"))
-                    .setLabel(json.optNullableString("title"))
+                    .setLabel(label)
                     .setLanguage(json.optNullableString("lang"))
                     .setSelectionFlags(
-                        if (json.optBoolean("default")) C.SELECTION_FLAG_DEFAULT else 0
+                        (if (json.optBoolean("default")) C.SELECTION_FLAG_DEFAULT else 0) or
+                            (if (json.optBoolean("forced")) C.SELECTION_FLAG_FORCED else 0)
+                    )
+                    .setRoleFlags(
+                        if (json.optBoolean("hearing-impaired")) {
+                            C.ROLE_FLAG_CAPTION or
+                                C.ROLE_FLAG_DESCRIBES_MUSIC_AND_SOUND or
+                                C.ROLE_FLAG_TRANSCRIBES_DIALOG
+                        } else {
+                            0
+                        }
                     )
                     .setCodecs(json.optNullableString("codec"))
                     .build()
