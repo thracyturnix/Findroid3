@@ -105,6 +105,25 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
                                                 ),
+                                                PreferenceCategory(
+                                                    nameStringResource =
+                                                        R.string.android_subtitle_preferences,
+                                                    descriptionStringRes =
+                                                        R.string.subtitles_summary,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    onClick = {
+                                                        viewModelScope.launch {
+                                                            eventsChannel.send(
+                                                                SettingsEvent.LaunchIntent(
+                                                                    Intent(
+                                                                        Settings
+                                                                            .ACTION_CAPTIONING_SETTINGS
+                                                                    )
+                                                                )
+                                                            )
+                                                        }
+                                                    },
+                                                ),
                                             )
                                     ),
                                 ),
@@ -218,29 +237,6 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                             },
                             nestedPreferenceGroups =
                                 listOf(
-                                    PreferenceGroup(
-                                        preferences =
-                                            listOf(
-                                                PreferenceCategory(
-                                                    nameStringResource = R.string.subtitles,
-                                                    descriptionStringRes =
-                                                        R.string.subtitles_summary,
-                                                    iconDrawableId = R.drawable.ic_closed_caption,
-                                                    onClick = {
-                                                        viewModelScope.launch {
-                                                            eventsChannel.send(
-                                                                SettingsEvent.LaunchIntent(
-                                                                    Intent(
-                                                                        Settings
-                                                                            .ACTION_CAPTIONING_SETTINGS
-                                                                    )
-                                                                )
-                                                            )
-                                                        }
-                                                    },
-                                                )
-                                            )
-                                    ),
                                     PreferenceGroup(
                                         nameStringResource = R.string.mpv_player,
                                         preferences =
