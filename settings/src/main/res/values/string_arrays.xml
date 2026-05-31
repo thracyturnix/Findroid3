@@ -102,4 +102,12 @@
         <item>upper_middle</item>
         <item>middle</item>
     </string-array>
+    <string-array name="unknown_audio_subtitle_mode">
+        <item>@string/unknown_audio_subtitle_mode_off</item>
+        <item>@string/unknown_audio_subtitle_mode_english</item>
+    </string-array>
+    <string-array name="unknown_audio_subtitle_mode_values">
+        <item>off</item>
+        <item>english</item>
+    </string-array>
 </resources>

@@ -100,6 +100,9 @@
     <string name="subtitle_position_lower_middle">Lower middle</string>
     <string name="subtitle_position_upper_middle">Upper middle</string>
     <string name="subtitle_position_middle">Middle</string>
+    <string name="unknown_audio_subtitle_mode">When audio language is unknown</string>
+    <string name="unknown_audio_subtitle_mode_off">Subtitles off</string>
+    <string name="unknown_audio_subtitle_mode_english">English subtitles</string>
     <string name="subtitles">Subtitles</string>
     <string name="subtitles_summary">Customize subtitles appearance</string>
     <string name="privacy_policy">Privacy policy</string>

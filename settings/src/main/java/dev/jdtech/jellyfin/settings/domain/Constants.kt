@@ -14,6 +14,11 @@ object Constants {
         const val ENGLISH_FORCED = "english_forced"
     }
 
+    object UnknownAudioSubtitleMode {
+        const val OFF = "off"
+        const val ENGLISH = "english"
+    }
+
     object SubtitleAppearance {
         const val SIZE_SMALL = "small"
         const val SIZE_NORMAL = "normal"

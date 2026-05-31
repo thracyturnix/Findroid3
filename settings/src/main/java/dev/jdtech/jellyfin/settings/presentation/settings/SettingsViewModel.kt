@@ -103,6 +103,16 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
                                                 ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string.unknown_audio_subtitle_mode,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.unknownAudioSubtitleMode,
+                                                    options = R.array.unknown_audio_subtitle_mode,
+                                                    optionValues =
+                                                        R.array.unknown_audio_subtitle_mode_values,
+                                                ),
                                             )
                                     ),
                                     PreferenceGroup(

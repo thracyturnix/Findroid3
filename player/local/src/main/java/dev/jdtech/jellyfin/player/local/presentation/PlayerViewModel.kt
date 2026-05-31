@@ -560,10 +560,18 @@ constructor(
             }
         }
 
-        if (englishSubtitleGroups.isEmpty()) return
-
         val primaryAudioLanguage = item.primaryAudioLanguage
-        if (primaryAudioLanguage.isNullOrBlank()) return
+        if (primaryAudioLanguage.isNullOrBlank()) {
+            when (appPreferences.getValue(appPreferences.unknownAudioSubtitleMode)) {
+                Constants.UnknownAudioSubtitleMode.ENGLISH ->
+                    selectEnglishSubtitle(mediaId, englishSubtitleGroups, forced = false)
+                else -> {
+                    smartSubtitleSelectionMediaId = mediaId
+                    selectTrack(C.TRACK_TYPE_TEXT, null)
+                }
+            }
+            return
+        }
 
         if (primaryAudioLanguage.isEnglishLanguage()) {
             smartSubtitleSelectionMediaId = mediaId
@@ -577,6 +585,8 @@ constructor(
             )
             return
         }
+
+        if (englishSubtitleGroups.isEmpty()) return
 
         val targetGroup =
             englishSubtitleGroups

@@ -12,6 +12,8 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Language
     val preferredAudioLanguage = Preference<String?>("pref_audio_language", null)
     val preferredSubtitleLanguage = Preference<String?>("pref_subtitle_language", null)
+    val unknownAudioSubtitleMode =
+        Preference("pref_unknown_audio_subtitle_mode", Constants.UnknownAudioSubtitleMode.OFF)
     val subtitleSize =
         Preference<String?>("pref_subtitle_size", Constants.SubtitleAppearance.SIZE_NORMAL)
     val subtitleColor =
