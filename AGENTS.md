@@ -10,8 +10,9 @@ screen build note up to date.
   change, because the phone About screen shows this under its build section.
 - The phone About screen displays this value through `BuildConfig.FORK_BUILD`.
 - Do not commit feature or fix changes without the corresponding fork build update.
-- Run `scripts/install-git-hooks.sh` once after cloning. The pre-commit hook blocks
-  commits that omit the fork build bump or its 2-3 keyword description.
+- Run `scripts/install-git-hooks.sh` once after cloning. Local hooks block commits
+  and pushes that omit the fork build bump or its 2-3 keyword description.
+- GitHub also checks the invariant on pushes and pull requests.
 
 ## README Ownership
 
