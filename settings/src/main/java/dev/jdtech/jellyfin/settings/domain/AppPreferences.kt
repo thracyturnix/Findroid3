@@ -12,6 +12,16 @@ class AppPreferences @Inject constructor(val sharedPreferences: SharedPreference
     // Language
     val preferredAudioLanguage = Preference<String?>("pref_audio_language", null)
     val preferredSubtitleLanguage = Preference<String?>("pref_subtitle_language", null)
+    val subtitleSize =
+        Preference<String?>("pref_subtitle_size", Constants.SubtitleAppearance.SIZE_NORMAL)
+    val subtitleColor =
+        Preference<String?>("pref_subtitle_color", Constants.SubtitleAppearance.COLOR_WHITE)
+    val subtitleOutline =
+        Preference<String?>("pref_subtitle_outline", Constants.SubtitleAppearance.OUTLINE_OUTLINE)
+    val subtitleBackground =
+        Preference<String?>("pref_subtitle_background", Constants.SubtitleAppearance.BACKGROUND_OFF)
+    val subtitlePosition =
+        Preference<String?>("pref_subtitle_position", Constants.SubtitleAppearance.POSITION_BOTTOM)
 
     // Interface
     val theme = Preference("pref_theme", "system")

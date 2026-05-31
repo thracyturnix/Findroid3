@@ -53,6 +53,7 @@ import dev.jdtech.jellyfin.presentation.film.components.ItemButtonsBar
 import dev.jdtech.jellyfin.presentation.film.components.ItemHeader
 import dev.jdtech.jellyfin.presentation.film.components.ItemTopBar
 import dev.jdtech.jellyfin.presentation.film.components.OverviewText
+import dev.jdtech.jellyfin.presentation.film.components.PreviousEpisodeDialog
 import dev.jdtech.jellyfin.presentation.film.components.VideoMetadataBar
 import dev.jdtech.jellyfin.presentation.theme.FindroidTheme
 import dev.jdtech.jellyfin.presentation.theme.spacings
@@ -85,6 +86,17 @@ fun EpisodeScreen(
         state.episode?.let { episode -> downloaderViewModel.update(episode) }
     }
 
+    LaunchedEffect(state.playbackRequest) {
+        state.playbackRequest?.let { request ->
+            val intent = Intent(context, PlayerActivity::class.java)
+            intent.putExtra("itemId", request.episodeId.toString())
+            intent.putExtra("itemKind", BaseItemKind.EPISODE.serialName)
+            intent.putExtra("startFromBeginning", request.startFromBeginning)
+            context.startActivity(intent)
+            viewModel.onAction(EpisodeAction.PlaybackStarted)
+        }
+    }
+
     ObserveAsEvents(downloaderViewModel.events) { event ->
         when (event) {
             is DownloaderEvent.Successful -> {
@@ -105,13 +117,6 @@ fun EpisodeScreen(
         downloaderState = downloaderState,
         onAction = { action ->
             when (action) {
-                is EpisodeAction.Play -> {
-                    val intent = Intent(context, PlayerActivity::class.java)
-                    intent.putExtra("itemId", episodeId.toString())
-                    intent.putExtra("itemKind", BaseItemKind.EPISODE.serialName)
-                    intent.putExtra("startFromBeginning", action.startFromBeginning)
-                    context.startActivity(intent)
-                }
                 is EpisodeAction.OnBackClick -> navigateBack()
                 is EpisodeAction.OnHomeClick -> navigateHome()
                 is EpisodeAction.NavigateToPerson -> navigateToPerson(action.personId)
@@ -122,6 +127,15 @@ fun EpisodeScreen(
         },
         onDownloaderAction = { action -> downloaderViewModel.onAction(action) },
     )
+
+    state.previousEpisodeCheck?.let { check ->
+        PreviousEpisodeDialog(
+            check = check,
+            onPlayPrevious = { viewModel.onAction(EpisodeAction.PlayPreviousEpisode) },
+            onPlaySelected = { viewModel.onAction(EpisodeAction.PlaySelectedEpisodeAnyway) },
+            onDismiss = { viewModel.onAction(EpisodeAction.DismissPreviousEpisodeCheck) },
+        )
+    }
 }
 
 @Composable

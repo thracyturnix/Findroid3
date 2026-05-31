@@ -48,4 +48,58 @@
         <item>COMMERCIAL</item>
         <item>UNKNOWN</item>
     </string-array>
+    <string-array name="subtitle_size">
+        <item>@string/subtitle_size_small</item>
+        <item>@string/subtitle_size_normal</item>
+        <item>@string/subtitle_size_large</item>
+        <item>@string/subtitle_size_extra_large</item>
+    </string-array>
+    <string-array name="subtitle_size_values">
+        <item>small</item>
+        <item>normal</item>
+        <item>large</item>
+        <item>extra_large</item>
+    </string-array>
+    <string-array name="subtitle_color">
+        <item>@string/subtitle_color_white</item>
+        <item>@string/subtitle_color_yellow</item>
+    </string-array>
+    <string-array name="subtitle_color_values">
+        <item>white</item>
+        <item>yellow</item>
+    </string-array>
+    <string-array name="subtitle_outline">
+        <item>@string/subtitle_outline_none</item>
+        <item>@string/subtitle_outline_shadow</item>
+        <item>@string/subtitle_outline_outline</item>
+    </string-array>
+    <string-array name="subtitle_outline_values">
+        <item>none</item>
+        <item>shadow</item>
+        <item>outline</item>
+    </string-array>
+    <string-array name="subtitle_background">
+        <item>@string/subtitle_background_off</item>
+        <item>@string/subtitle_background_translucent</item>
+        <item>@string/subtitle_background_black</item>
+    </string-array>
+    <string-array name="subtitle_background_values">
+        <item>off</item>
+        <item>translucent</item>
+        <item>black</item>
+    </string-array>
+    <string-array name="subtitle_position">
+        <item>@string/subtitle_position_bottom</item>
+        <item>@string/subtitle_position_low</item>
+        <item>@string/subtitle_position_lower_middle</item>
+        <item>@string/subtitle_position_upper_middle</item>
+        <item>@string/subtitle_position_middle</item>
+    </string-array>
+    <string-array name="subtitle_position_values">
+        <item>bottom</item>
+        <item>low</item>
+        <item>lower_middle</item>
+        <item>upper_middle</item>
+        <item>middle</item>
+    </string-array>
 </resources>

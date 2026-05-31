@@ -155,6 +155,14 @@ constructor(
                     .setVideoOutput(appPreferences.getValue(appPreferences.playerMpvVo))
                     .setAudioOutput(appPreferences.getValue(appPreferences.playerMpvAo))
                     .setHwDec(appPreferences.getValue(appPreferences.playerMpvHwdec))
+                    .setSubtitleAppearance(
+                        size = appPreferences.getValue(appPreferences.subtitleSize) ?: "",
+                        color = appPreferences.getValue(appPreferences.subtitleColor) ?: "",
+                        outline = appPreferences.getValue(appPreferences.subtitleOutline) ?: "",
+                        background =
+                            appPreferences.getValue(appPreferences.subtitleBackground) ?: "",
+                        position = appPreferences.getValue(appPreferences.subtitlePosition) ?: "",
+                    )
                     .build()
         } else {
             val renderersFactory =

@@ -11,6 +11,7 @@ import dev.jdtech.jellyfin.models.FindroidEpisode
 import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.models.FindroidMovie
 import dev.jdtech.jellyfin.models.FindroidPerson
+import dev.jdtech.jellyfin.models.PreviousEpisodeCheck
 import dev.jdtech.jellyfin.models.FindroidSeason
 import dev.jdtech.jellyfin.models.FindroidSegment
 import dev.jdtech.jellyfin.models.FindroidShow
@@ -322,6 +323,21 @@ class JellyfinRepositoryImpl(
             }
         }
 
+    override suspend fun getPreviousEpisodeCheck(episodeId: UUID): PreviousEpisodeCheck? =
+        withContext(Dispatchers.IO) {
+            val currentEpisode = getEpisode(episodeId)
+            val episodes =
+                jellyfinApi.showsApi
+                    .getEpisodes(
+                        currentEpisode.seriesId,
+                        jellyfinApi.userId!!,
+                    )
+                    .content
+                    .items
+                    .mapNotNull { it.toFindroidEpisode(this@JellyfinRepositoryImpl, database) }
+            previousEpisodeCheck(currentEpisode, episodes)
+        }
+
     override suspend fun getMediaSources(itemId: UUID, includePath: Boolean): List<FindroidSource> =
         withContext(Dispatchers.IO) {
             val sources = mutableListOf<FindroidSource>()
@@ -466,7 +482,7 @@ class JellyfinRepositoryImpl(
                     database.setPlaybackPositionTicks(itemId, jellyfinApi.userId!!, 0)
                     database.setPlayed(jellyfinApi.userId!!, itemId, false)
                 }
-                playedPercentage > 90 -> {
+                playedPercentage >= 90 -> {
                     database.setPlaybackPositionTicks(itemId, jellyfinApi.userId!!, 0)
                     database.setPlayed(jellyfinApi.userId!!, itemId, true)
                 }

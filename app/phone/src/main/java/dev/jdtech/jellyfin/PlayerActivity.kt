@@ -16,6 +16,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Process
 import android.util.Rational
+import android.util.TypedValue
 import android.view.Gravity
 import android.view.SurfaceView
 import android.view.View
@@ -34,9 +35,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
 import androidx.media3.ui.PlayerView
+import androidx.media3.ui.SubtitleView
 import dagger.hilt.android.AndroidEntryPoint
 import dev.jdtech.jellyfin.databinding.ActivityPlayerBinding
 import dev.jdtech.jellyfin.player.local.presentation.PlayerEvents
@@ -44,6 +47,7 @@ import dev.jdtech.jellyfin.player.local.presentation.PlayerViewModel
 import dev.jdtech.jellyfin.presentation.player.SpeedSelectionDialogFragment
 import dev.jdtech.jellyfin.presentation.player.TrackSelectionDialogFragment
 import dev.jdtech.jellyfin.settings.domain.AppPreferences
+import dev.jdtech.jellyfin.settings.domain.Constants
 import dev.jdtech.jellyfin.utils.PlayerGestureHelper
 import dev.jdtech.jellyfin.utils.PreviewScrubListener
 import java.util.UUID
@@ -114,6 +118,7 @@ class PlayerActivity : BasePlayerActivity() {
 
         cutoutAvoidanceEnabled = appPreferences.getValue(appPreferences.playerAvoidCameraCutout)
         binding.playerView.player = viewModel.player
+        applySubtitleAppearance()
         viewModel.player.addListener(cutoutAvoidancePlayerListener)
         binding.playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
             updateCameraCutoutAvoidance()
@@ -492,6 +497,60 @@ class PlayerActivity : BasePlayerActivity() {
                 }
             }
         }
+    }
+
+    private fun applySubtitleAppearance() {
+        val subtitleView =
+            binding.playerView.findViewById<SubtitleView>(androidx.media3.ui.R.id.exo_subtitles)
+        subtitleView.setApplyEmbeddedStyles(false)
+        subtitleView.setApplyEmbeddedFontSizes(false)
+        subtitleView.setFixedTextSize(
+            TypedValue.COMPLEX_UNIT_SP,
+            when (appPreferences.getValue(appPreferences.subtitleSize)) {
+                Constants.SubtitleAppearance.SIZE_SMALL -> 16f
+                Constants.SubtitleAppearance.SIZE_LARGE -> 24f
+                Constants.SubtitleAppearance.SIZE_EXTRA_LARGE -> 28f
+                else -> 20f
+            },
+        )
+        subtitleView.setBottomPaddingFraction(
+            when (appPreferences.getValue(appPreferences.subtitlePosition)) {
+                Constants.SubtitleAppearance.POSITION_LOW -> 0.18f
+                Constants.SubtitleAppearance.POSITION_LOWER_MIDDLE -> 0.28f
+                Constants.SubtitleAppearance.POSITION_UPPER_MIDDLE -> 0.38f
+                Constants.SubtitleAppearance.POSITION_MIDDLE -> 0.48f
+                else -> 0.08f
+            }
+        )
+
+        val foregroundColor =
+            when (appPreferences.getValue(appPreferences.subtitleColor)) {
+                Constants.SubtitleAppearance.COLOR_YELLOW -> Color.YELLOW
+                else -> Color.WHITE
+            }
+        val backgroundColor =
+            when (appPreferences.getValue(appPreferences.subtitleBackground)) {
+                Constants.SubtitleAppearance.BACKGROUND_TRANSLUCENT -> 0x99000000.toInt()
+                Constants.SubtitleAppearance.BACKGROUND_BLACK -> Color.BLACK
+                else -> Color.TRANSPARENT
+            }
+        val edgeType =
+            when (appPreferences.getValue(appPreferences.subtitleOutline)) {
+                Constants.SubtitleAppearance.OUTLINE_NONE -> CaptionStyleCompat.EDGE_TYPE_NONE
+                Constants.SubtitleAppearance.OUTLINE_SHADOW ->
+                    CaptionStyleCompat.EDGE_TYPE_DROP_SHADOW
+                else -> CaptionStyleCompat.EDGE_TYPE_OUTLINE
+            }
+        subtitleView.setStyle(
+            CaptionStyleCompat(
+                foregroundColor,
+                backgroundColor,
+                Color.TRANSPARENT,
+                edgeType,
+                Color.BLACK,
+                null,
+            )
+        )
     }
 
     private fun updateCameraCutoutAvoidance() {

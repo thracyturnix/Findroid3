@@ -179,7 +179,7 @@ fun HomeHeader(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        painter = painterResource(CoreR.drawable.ic_user),
+                        painter = painterResource(CoreR.drawable.ic_settings),
                         contentDescription = null,
                     )
                 }

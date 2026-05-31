@@ -36,6 +36,7 @@ import androidx.media3.common.util.Clock
 import androidx.media3.common.util.ListenerSet
 import androidx.media3.common.util.Size
 import androidx.media3.common.util.Util
+import dev.jdtech.jellyfin.settings.domain.Constants
 import dev.jdtech.mpv.MPVLib
 import dev.jdtech.mpv.MPVLib.MpvFormat
 import dev.jdtech.mpv.MPVLib.MpvEvent
@@ -60,6 +61,11 @@ class MPVPlayer(
     videoOutput: String = "gpu-next",
     audioOutput: String = "aaudio",
     hwDec: String = "mediacodec",
+    subtitleSize: String = Constants.SubtitleAppearance.SIZE_NORMAL,
+    subtitleColor: String = Constants.SubtitleAppearance.COLOR_WHITE,
+    subtitleOutline: String = Constants.SubtitleAppearance.OUTLINE_OUTLINE,
+    subtitleBackground: String = Constants.SubtitleAppearance.BACKGROUND_OFF,
+    subtitlePosition: String = Constants.SubtitleAppearance.POSITION_BOTTOM,
 ) : BasePlayer(), MPVLib.EventObserver, AudioManager.OnAudioFocusChangeListener {
     private val mpvLib: MPVLib
     private val audioManager: AudioManager by lazy { context.getSystemService()!! }
@@ -80,6 +86,11 @@ class MPVPlayer(
         videoOutput = builder.videoOutput,
         audioOutput = builder.audioOutput,
         hwDec = builder.hwDec,
+        subtitleSize = builder.subtitleSize,
+        subtitleColor = builder.subtitleColor,
+        subtitleOutline = builder.subtitleOutline,
+        subtitleBackground = builder.subtitleBackground,
+        subtitlePosition = builder.subtitlePosition,
     )
 
     class Builder(val context: Context) {
@@ -110,6 +121,21 @@ class MPVPlayer(
         var hwDec: String = "mediacodec"
             private set
 
+        var subtitleSize: String = Constants.SubtitleAppearance.SIZE_NORMAL
+            private set
+
+        var subtitleColor: String = Constants.SubtitleAppearance.COLOR_WHITE
+            private set
+
+        var subtitleOutline: String = Constants.SubtitleAppearance.OUTLINE_OUTLINE
+            private set
+
+        var subtitleBackground: String = Constants.SubtitleAppearance.BACKGROUND_OFF
+            private set
+
+        var subtitlePosition: String = Constants.SubtitleAppearance.POSITION_BOTTOM
+            private set
+
         fun setAudioAttributes(audioAttributes: AudioAttributes, handleAudioFocus: Boolean) =
             apply {
                 this.audioAttributes = audioAttributes
@@ -138,6 +164,20 @@ class MPVPlayer(
         fun setAudioOutput(audioOutput: String) = apply { this.audioOutput = audioOutput }
 
         fun setHwDec(hwDec: String) = apply { this.hwDec = hwDec }
+
+        fun setSubtitleAppearance(
+            size: String,
+            color: String,
+            outline: String,
+            background: String,
+            position: String,
+        ) = apply {
+            subtitleSize = size
+            subtitleColor = color
+            subtitleOutline = outline
+            subtitleBackground = background
+            subtitlePosition = position
+        }
 
         fun build() = MPVPlayer(this)
     }
@@ -192,6 +232,13 @@ class MPVPlayer(
         // Subs
         mpvLib.setOptionString("sub-scale-with-window", "yes")
         mpvLib.setOptionString("sub-use-margins", "no")
+        applySubtitleAppearance(
+            subtitleSize = subtitleSize,
+            subtitleColor = subtitleColor,
+            subtitleOutline = subtitleOutline,
+            subtitleBackground = subtitleBackground,
+            subtitlePosition = subtitlePosition,
+        )
 
         // Language
         // Split on "-" and use last part because media3 does some weird mapping
@@ -308,6 +355,66 @@ class MPVPlayer(
         } catch (e: IOException) {
             Timber.w("Failed to write fonts.conf: $e")
         }
+    }
+
+    private fun applySubtitleAppearance(
+        subtitleSize: String,
+        subtitleColor: String,
+        subtitleOutline: String,
+        subtitleBackground: String,
+        subtitlePosition: String,
+    ) {
+        mpvLib.setOptionString("sub-ass-override", "force")
+        mpvLib.setOptionString(
+            "sub-scale",
+            when (subtitleSize) {
+                Constants.SubtitleAppearance.SIZE_SMALL -> "0.8"
+                Constants.SubtitleAppearance.SIZE_LARGE -> "1.2"
+                Constants.SubtitleAppearance.SIZE_EXTRA_LARGE -> "1.4"
+                else -> "1.0"
+            },
+        )
+        mpvLib.setOptionString(
+            "sub-color",
+            when (subtitleColor) {
+                Constants.SubtitleAppearance.COLOR_YELLOW -> "#FFFF00"
+                else -> "#FFFFFF"
+            },
+        )
+        when (subtitleOutline) {
+            Constants.SubtitleAppearance.OUTLINE_NONE -> {
+                mpvLib.setOptionString("sub-border-size", "0")
+                mpvLib.setOptionString("sub-shadow-offset", "0")
+            }
+            Constants.SubtitleAppearance.OUTLINE_SHADOW -> {
+                mpvLib.setOptionString("sub-border-size", "0")
+                mpvLib.setOptionString("sub-shadow-offset", "2")
+                mpvLib.setOptionString("sub-shadow-color", "#000000")
+            }
+            else -> {
+                mpvLib.setOptionString("sub-border-size", "2")
+                mpvLib.setOptionString("sub-border-color", "#000000")
+                mpvLib.setOptionString("sub-shadow-offset", "0")
+            }
+        }
+        mpvLib.setOptionString(
+            "sub-back-color",
+            when (subtitleBackground) {
+                Constants.SubtitleAppearance.BACKGROUND_TRANSLUCENT -> "#80000000"
+                Constants.SubtitleAppearance.BACKGROUND_BLACK -> "#000000"
+                else -> "#00000000"
+            },
+        )
+        mpvLib.setOptionString(
+            "sub-pos",
+            when (subtitlePosition) {
+                Constants.SubtitleAppearance.POSITION_LOW -> "88"
+                Constants.SubtitleAppearance.POSITION_LOWER_MIDDLE -> "75"
+                Constants.SubtitleAppearance.POSITION_UPPER_MIDDLE -> "63"
+                Constants.SubtitleAppearance.POSITION_MIDDLE -> "50"
+                else -> "100"
+            },
+        )
     }
 
     // Listeners and notification.

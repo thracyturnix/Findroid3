@@ -29,6 +29,7 @@ constructor(
     val state = _state.asStateFlow()
 
     lateinit var episodeId: UUID
+    private var requestedStartFromBeginning = false
 
     fun loadEpisode(episodeId: UUID) {
         this.episodeId = episodeId
@@ -60,6 +61,31 @@ constructor(
 
     fun onAction(action: EpisodeAction) {
         when (action) {
+            is EpisodeAction.Play -> {
+                viewModelScope.launch {
+                    requestedStartFromBeginning = action.startFromBeginning
+                    val previousEpisodeCheck = repository.getPreviousEpisodeCheck(episodeId)
+                    if (previousEpisodeCheck == null) {
+                        requestPlayback(episodeId, action.startFromBeginning)
+                    } else {
+                        _state.emit(_state.value.copy(previousEpisodeCheck = previousEpisodeCheck))
+                    }
+                }
+            }
+            is EpisodeAction.PlayPreviousEpisode -> {
+                _state.value.previousEpisodeCheck?.previousEpisode?.let {
+                    requestPlayback(it.id, false)
+                }
+            }
+            is EpisodeAction.PlaySelectedEpisodeAnyway -> {
+                requestPlayback(episodeId, requestedStartFromBeginning)
+            }
+            is EpisodeAction.DismissPreviousEpisodeCheck -> {
+                _state.value = _state.value.copy(previousEpisodeCheck = null)
+            }
+            is EpisodeAction.PlaybackStarted -> {
+                _state.value = _state.value.copy(playbackRequest = null)
+            }
             is EpisodeAction.MarkAsPlayed -> {
                 viewModelScope.launch {
                     repository.markAsPlayed(episodeId)
@@ -86,5 +112,13 @@ constructor(
             }
             else -> Unit
         }
+    }
+
+    private fun requestPlayback(episodeId: UUID, startFromBeginning: Boolean) {
+        _state.value =
+            _state.value.copy(
+                previousEpisodeCheck = null,
+                playbackRequest = EpisodePlaybackRequest(episodeId, startFromBeginning),
+            )
     }
 }

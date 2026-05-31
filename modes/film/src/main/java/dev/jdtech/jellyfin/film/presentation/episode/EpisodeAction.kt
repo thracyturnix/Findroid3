@@ -5,6 +5,14 @@ import java.util.UUID
 sealed interface EpisodeAction {
     data class Play(val startFromBeginning: Boolean = false) : EpisodeAction
 
+    data object PlayPreviousEpisode : EpisodeAction
+
+    data object PlaySelectedEpisodeAnyway : EpisodeAction
+
+    data object DismissPreviousEpisodeCheck : EpisodeAction
+
+    data object PlaybackStarted : EpisodeAction
+
     data object MarkAsPlayed : EpisodeAction
 
     data object UnmarkAsPlayed : EpisodeAction

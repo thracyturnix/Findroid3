@@ -1,8 +1,6 @@
 package dev.jdtech.jellyfin.settings.presentation.settings
 
-import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -105,24 +103,51 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     optionValues = R.array.languages_values,
                                                     optionsIncludeNull = true,
                                                 ),
-                                                PreferenceCategory(
-                                                    nameStringResource =
-                                                        R.string.android_subtitle_preferences,
-                                                    descriptionStringRes =
-                                                        R.string.subtitles_summary,
+                                            )
+                                    ),
+                                    PreferenceGroup(
+                                        nameStringResource = R.string.subtitle_appearance,
+                                        preferences =
+                                            listOf(
+                                                PreferenceSelect(
+                                                    nameStringResource = R.string.subtitle_size,
                                                     iconDrawableId = R.drawable.ic_closed_caption,
-                                                    onClick = {
-                                                        viewModelScope.launch {
-                                                            eventsChannel.send(
-                                                                SettingsEvent.LaunchIntent(
-                                                                    Intent(
-                                                                        Settings
-                                                                            .ACTION_CAPTIONING_SETTINGS
-                                                                    )
-                                                                )
-                                                            )
-                                                        }
-                                                    },
+                                                    backendPreference = appPreferences.subtitleSize,
+                                                    options = R.array.subtitle_size,
+                                                    optionValues = R.array.subtitle_size_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource = R.string.subtitle_color,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference = appPreferences.subtitleColor,
+                                                    options = R.array.subtitle_color,
+                                                    optionValues = R.array.subtitle_color_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource = R.string.subtitle_outline,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.subtitleOutline,
+                                                    options = R.array.subtitle_outline,
+                                                    optionValues = R.array.subtitle_outline_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource =
+                                                        R.string.subtitle_background,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.subtitleBackground,
+                                                    options = R.array.subtitle_background,
+                                                    optionValues =
+                                                        R.array.subtitle_background_values,
+                                                ),
+                                                PreferenceSelect(
+                                                    nameStringResource = R.string.subtitle_position,
+                                                    iconDrawableId = R.drawable.ic_closed_caption,
+                                                    backendPreference =
+                                                        appPreferences.subtitlePosition,
+                                                    options = R.array.subtitle_position,
+                                                    optionValues = R.array.subtitle_position_values,
                                                 ),
                                             )
                                     ),
