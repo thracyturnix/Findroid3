@@ -18,6 +18,17 @@ screen build note up to date.
 Do not edit, stage, commit, or push `README.md`. The user owns all README changes
 and will edit that file directly.
 
+## Jellyfin Advisory Check
+
+Before starting development work in a new session, run:
+
+`scripts/check-jellyfin-upstream.sh`
+
+Report any notices to the user before making changes. This check is advisory
+only. Do not update the Jellyfin SDK, change compatibility behavior, implement
+new Jellyfin capabilities, or update the stored review baseline without the
+user's explicit approval.
+
 ## Upstream Maintenance
 
 When updating this fork from `upstream/main`, preserve the fork features unless

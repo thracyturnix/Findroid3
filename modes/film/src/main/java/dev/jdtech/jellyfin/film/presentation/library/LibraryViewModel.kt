@@ -36,6 +36,12 @@ constructor(
     lateinit var sortOrder: SortOrder
     var showUnplayedOnly = false
 
+    init {
+        viewModelScope.launch {
+            jellyfinRepository.userDataChanged.collect { requestRefresh() }
+        }
+    }
+
     fun setup(parentId: UUID, libraryType: CollectionType) {
         this.parentId = parentId
         this.libraryType = libraryType

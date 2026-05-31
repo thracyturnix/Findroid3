@@ -32,6 +32,8 @@ import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.withContext
 import org.jellyfin.sdk.model.api.BaseItemDto
 import org.jellyfin.sdk.model.api.BaseItemKind
@@ -62,6 +64,9 @@ class JellyfinRepositoryImpl(
     private val database: ServerDatabaseDao,
     private val appPreferences: AppPreferences,
 ) : JellyfinRepository {
+    private val _userDataChanged = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    override val userDataChanged = _userDataChanged.asSharedFlow()
+
     override suspend fun getPublicSystemInfo(): PublicSystemInfo =
         withContext(Dispatchers.IO) { jellyfinApi.systemApi.getPublicSystemInfo().content }
 
@@ -499,6 +504,7 @@ class JellyfinRepositoryImpl(
                 database.setUserDataToBeSynced(jellyfinApi.userId!!, itemId, true)
             }
         }
+        _userDataChanged.emit(Unit)
     }
 
     override suspend fun postPlaybackProgress(

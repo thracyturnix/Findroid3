@@ -1,0 +1,5 @@
+{
+  "reviewed_server_release": null,
+  "reviewed_sdk_release": null,
+  "note": "Initial advisory snapshot. Set reviewed releases only after the user explicitly approves a Jellyfin compatibility review."
+}

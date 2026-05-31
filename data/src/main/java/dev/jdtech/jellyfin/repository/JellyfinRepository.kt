@@ -28,6 +28,8 @@ interface JellyfinRepository {
 
     suspend fun getPublicSystemInfo(): PublicSystemInfo
 
+    val userDataChanged: Flow<Unit>
+
     suspend fun getUserViews(): List<BaseItemDto>
 
     suspend fun getEpisode(itemId: UUID): FindroidEpisode
