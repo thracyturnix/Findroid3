@@ -12,7 +12,6 @@ screen build note up to date.
 - Do not commit feature or fix changes without the corresponding fork build update.
 - Run `scripts/install-git-hooks.sh` once after cloning. Local hooks block commits
   and pushes that omit the fork build bump or its 2-3 keyword description.
-- GitHub also checks the invariant on pushes and pull requests.
 
 ## README Ownership
 
