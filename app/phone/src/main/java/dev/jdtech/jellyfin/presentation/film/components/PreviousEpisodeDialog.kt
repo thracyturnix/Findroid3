@@ -1,13 +1,23 @@
 package dev.jdtech.jellyfin.presentation.film.components
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
-import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import dev.jdtech.jellyfin.core.R as CoreR
 import dev.jdtech.jellyfin.models.PreviousEpisodeCheck
+import dev.jdtech.jellyfin.presentation.components.BaseDialog
+import dev.jdtech.jellyfin.presentation.theme.spacings
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun PreviousEpisodeDialog(
@@ -22,59 +32,49 @@ fun PreviousEpisodeDialog(
             episodeNumber = check.previousEpisodeNumber,
             currentSeasonNumber = check.currentEpisode.parentIndexNumber,
         )
-    val currentLabel =
-        episodeLabel(
-            seasonNumber = check.currentEpisode.parentIndexNumber,
-            episodeNumber = check.currentEpisode.indexNumber,
-            currentSeasonNumber = check.currentEpisode.parentIndexNumber,
-        )
-
-    AlertDialog(
-        title = {
-            Text(
-                text =
+    BaseDialog(
+        title =
+            stringResource(
+                if (check.previousEpisode == null) {
+                    CoreR.string.previous_episode_unavailable
+                } else {
+                    CoreR.string.previous_episode_incomplete
+                }
+            ),
+        onDismiss = onDismiss,
+    ) { contentPadding ->
+        Text(
+            modifier = Modifier.padding(contentPadding),
+            text =
+                if (check.previousEpisode == null) {
+                    stringResource(CoreR.string.previous_episode_missing, previousLabel)
+                } else {
                     stringResource(
-                        if (check.previousEpisode == null) {
-                            CoreR.string.previous_episode_unavailable
-                        } else {
-                            CoreR.string.previous_episode_incomplete
-                        }
+                        CoreR.string.previous_episode_completion,
+                        previousLabel,
+                        check.completionPercentage ?: 0,
                     )
-            )
-        },
-        text = {
-            Text(
-                text =
-                    if (check.previousEpisode == null) {
-                        stringResource(CoreR.string.previous_episode_missing, previousLabel)
-                    } else {
-                        stringResource(
-                            CoreR.string.previous_episode_completion,
-                            previousLabel,
-                            check.completionPercentage ?: 0,
-                        )
-                    }
-            )
-        },
-        onDismissRequest = onDismiss,
-        confirmButton = {
+                },
+        )
+        Spacer(modifier = Modifier.height(MaterialTheme.spacings.default))
+        Row(
+            modifier = Modifier.padding(contentPadding).fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
+        ) {
             check.previousEpisode?.let {
-                TextButton(onClick = onPlayPrevious) {
-                    Text(text = stringResource(CoreR.string.play_episode, previousLabel))
+                Button(modifier = Modifier.weight(1f), onClick = onPlayPrevious) {
+                    Text(text = stringResource(CoreR.string.play_previous))
                 }
             }
-        },
-        dismissButton = {
-            Row {
-                TextButton(onClick = onPlaySelected) {
-                    Text(text = stringResource(CoreR.string.play_episode_anyway, currentLabel))
-                }
-                TextButton(onClick = onDismiss) {
-                    Text(text = stringResource(CoreR.string.cancel))
-                }
+            OutlinedButton(modifier = Modifier.weight(1f), onClick = onPlaySelected) {
+                Text(text = stringResource(CoreR.string.play_anyway))
             }
-        },
-    )
+            TextButton(modifier = Modifier.weight(1f), onClick = onDismiss) {
+                Text(text = stringResource(CoreR.string.cancel))
+            }
+        }
+        Spacer(modifier = Modifier.height(MaterialTheme.spacings.default))
+    }
 }
 
 private fun episodeLabel(

@@ -113,6 +113,8 @@
     <string name="previous_episode_missing">%1$s is missing from your library.</string>
     <string name="play_episode">Play %1$s</string>
     <string name="play_episode_anyway">Play %1$s anyway</string>
+    <string name="play_previous">Previous</string>
+    <string name="play_anyway">Play anyway</string>
     <string name="add_to_favorites">Add to favorites</string>
     <string name="remove_from_favorites">Remove from favorites</string>
     <string name="not_set">Not set</string>
