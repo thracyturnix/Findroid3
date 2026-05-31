@@ -1,7 +1,6 @@
 package dev.jdtech.jellyfin.presentation.film.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,6 +31,12 @@ fun PreviousEpisodeDialog(
             episodeNumber = check.previousEpisodeNumber,
             currentSeasonNumber = check.currentEpisode.parentIndexNumber,
         )
+    val currentLabel =
+        episodeLabel(
+            seasonNumber = check.currentEpisode.parentIndexNumber,
+            episodeNumber = check.currentEpisode.indexNumber,
+            currentSeasonNumber = check.currentEpisode.parentIndexNumber,
+        )
     BaseDialog(
         title =
             stringResource(
@@ -57,19 +62,20 @@ fun PreviousEpisodeDialog(
                 },
         )
         Spacer(modifier = Modifier.height(MaterialTheme.spacings.default))
-        Row(
+        Column(
             modifier = Modifier.padding(contentPadding).fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(MaterialTheme.spacings.small),
         ) {
             check.previousEpisode?.let {
-                Button(modifier = Modifier.weight(1f), onClick = onPlayPrevious) {
-                    Text(text = stringResource(CoreR.string.play_previous))
+                Button(modifier = Modifier.fillMaxWidth(), onClick = onPlayPrevious) {
+                    Text(text = stringResource(CoreR.string.play_episode, previousLabel))
                 }
+                Spacer(modifier = Modifier.height(MaterialTheme.spacings.small))
             }
-            OutlinedButton(modifier = Modifier.weight(1f), onClick = onPlaySelected) {
-                Text(text = stringResource(CoreR.string.play_anyway))
+            OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = onPlaySelected) {
+                Text(text = stringResource(CoreR.string.play_episode_anyway, currentLabel))
             }
-            TextButton(modifier = Modifier.weight(1f), onClick = onDismiss) {
+            Spacer(modifier = Modifier.height(MaterialTheme.spacings.small))
+            TextButton(modifier = Modifier.fillMaxWidth(), onClick = onDismiss) {
                 Text(text = stringResource(CoreR.string.cancel))
             }
         }
