@@ -574,15 +574,7 @@ constructor(
         }
 
         if (primaryAudioLanguage.isEnglishLanguage()) {
-            smartSubtitleSelectionMediaId = mediaId
-            selectTrack(
-                C.TRACK_TYPE_TEXT,
-                englishSubtitleGroups
-                    .filter { it.isForcedSubtitle() }
-                    .sortedWith(subtitlePreferenceComparator())
-                    .firstOrNull()
-                    ?.mediaTrackGroup,
-            )
+            selectForcedEnglishSubtitle(mediaId, englishSubtitleGroups)
             return
         }
 
@@ -610,21 +602,37 @@ constructor(
         englishSubtitleGroups: List<Tracks.Group>,
         forced: Boolean,
     ) {
-        val targetGroup =
-            if (forced) {
-                englishSubtitleGroups
-                    .filter { it.isForcedSubtitle() }
-                    .sortedWith(subtitlePreferenceComparator())
-                    .firstOrNull()
-            } else {
-                englishSubtitleGroups
-                    .filterNot { it.isForcedSubtitle() }
-                    .ifEmpty { englishSubtitleGroups }
-                    .sortedWith(subtitlePreferenceComparator())
-                    .firstOrNull()
-            }
+        if (forced) {
+            selectForcedEnglishSubtitle(mediaId, englishSubtitleGroups)
+            return
+        }
 
-        smartSubtitleSelectionMediaId = mediaId
+        val targetGroup =
+            englishSubtitleGroups
+                .filterNot { it.isForcedSubtitle() }
+                .ifEmpty { englishSubtitleGroups }
+                .sortedWith(subtitlePreferenceComparator())
+                .firstOrNull()
+
+        if (targetGroup != null) {
+            smartSubtitleSelectionMediaId = mediaId
+        }
+        selectTrack(C.TRACK_TYPE_TEXT, targetGroup?.mediaTrackGroup)
+    }
+
+    private fun selectForcedEnglishSubtitle(
+        mediaId: String,
+        englishSubtitleGroups: List<Tracks.Group>,
+    ) {
+        val targetGroup =
+            englishSubtitleGroups
+                .filter { it.isForcedSubtitle() }
+                .sortedWith(subtitlePreferenceComparator())
+                .firstOrNull()
+
+        if (targetGroup != null) {
+            smartSubtitleSelectionMediaId = mediaId
+        }
         selectTrack(C.TRACK_TYPE_TEXT, targetGroup?.mediaTrackGroup)
     }
 
@@ -646,8 +654,12 @@ constructor(
 
     private fun Tracks.Group.isForcedSubtitle(): Boolean {
         val format = mediaTrackGroup.getFormat(0)
+        val label = format.label.orEmpty()
         return (format.selectionFlags and C.SELECTION_FLAG_FORCED) != 0 ||
-            format.label.orEmpty().contains("forced", ignoreCase = true)
+            label.contains("forced", ignoreCase = true) ||
+            label.contains("foreign audio", ignoreCase = true) ||
+            label.contains("foreign parts", ignoreCase = true) ||
+            label.contains("foreign language", ignoreCase = true)
     }
 
     private fun Tracks.Group.isSdhSubtitle(): Boolean {
