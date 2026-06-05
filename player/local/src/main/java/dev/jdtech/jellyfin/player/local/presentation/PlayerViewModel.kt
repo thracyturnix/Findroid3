@@ -555,14 +555,14 @@ constructor(
                 return
             }
             Constants.ShowSubtitleMode.ENGLISH_FORCED -> {
-                selectEnglishSubtitle(mediaId, englishSubtitleGroups, forced = true)
+                selectForcedEnglishSubtitle(mediaId, subtitleGroups)
                 return
             }
         }
 
         val primaryAudioLanguage = item.primaryAudioLanguage
         if (primaryAudioLanguage.isNullOrBlank()) {
-            if (selectForcedEnglishSubtitle(mediaId, englishSubtitleGroups)) {
+            if (selectForcedEnglishSubtitle(mediaId, subtitleGroups)) {
                 return
             }
 
@@ -578,7 +578,7 @@ constructor(
         }
 
         if (primaryAudioLanguage.isEnglishLanguage()) {
-            selectForcedEnglishSubtitle(mediaId, englishSubtitleGroups)
+            selectForcedEnglishSubtitle(mediaId, subtitleGroups)
             return
         }
 
@@ -626,11 +626,11 @@ constructor(
 
     private fun selectForcedEnglishSubtitle(
         mediaId: String,
-        englishSubtitleGroups: List<Tracks.Group>,
+        subtitleGroups: List<Tracks.Group>,
     ): Boolean {
         val targetGroup =
-            englishSubtitleGroups
-                .filter { it.isForcedSubtitle() }
+            subtitleGroups
+                .filter { it.isForcedSubtitle() && it.isEnglishOrUnknownLanguageSubtitle() }
                 .sortedWith(subtitlePreferenceComparator())
                 .firstOrNull()
 
@@ -651,6 +651,13 @@ constructor(
         val format = mediaTrackGroup.getFormat(0)
         return format.language.isEnglishLanguage() ||
             format.label.orEmpty().contains("english", ignoreCase = true)
+    }
+
+    private fun Tracks.Group.isEnglishOrUnknownLanguageSubtitle(): Boolean {
+        val format = mediaTrackGroup.getFormat(0)
+        return isEnglishSubtitle() ||
+            (format.language.isNullOrBlank() &&
+                !format.label.orEmpty().containsKnownNonEnglishLanguage())
     }
 
     private fun Tracks.Group.isDefaultSubtitle(): Boolean {
@@ -684,6 +691,26 @@ constructor(
         val normalized = this?.trim()?.lowercase()?.replace('_', '-') ?: return false
         val primaryLanguage = normalized.substringBefore("-")
         return primaryLanguage == "en" || primaryLanguage == "eng" || primaryLanguage == "english"
+    }
+
+    private fun String.containsKnownNonEnglishLanguage(): Boolean {
+        return listOf(
+                "arabic",
+                "chinese",
+                "danish",
+                "dutch",
+                "finnish",
+                "french",
+                "german",
+                "italian",
+                "japanese",
+                "korean",
+                "norwegian",
+                "portuguese",
+                "spanish",
+                "swedish",
+            )
+            .any { contains(it, ignoreCase = true) }
     }
 
     fun selectSpeed(speed: Float) {
