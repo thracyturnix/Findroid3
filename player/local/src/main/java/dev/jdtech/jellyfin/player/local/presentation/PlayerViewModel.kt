@@ -562,6 +562,10 @@ constructor(
 
         val primaryAudioLanguage = item.primaryAudioLanguage
         if (primaryAudioLanguage.isNullOrBlank()) {
+            if (selectForcedEnglishSubtitle(mediaId, englishSubtitleGroups)) {
+                return
+            }
+
             when (appPreferences.getValue(appPreferences.unknownAudioSubtitleMode)) {
                 Constants.UnknownAudioSubtitleMode.ENGLISH ->
                     selectEnglishSubtitle(mediaId, englishSubtitleGroups, forced = false)
@@ -623,7 +627,7 @@ constructor(
     private fun selectForcedEnglishSubtitle(
         mediaId: String,
         englishSubtitleGroups: List<Tracks.Group>,
-    ) {
+    ): Boolean {
         val targetGroup =
             englishSubtitleGroups
                 .filter { it.isForcedSubtitle() }
@@ -634,6 +638,7 @@ constructor(
             smartSubtitleSelectionMediaId = mediaId
         }
         selectTrack(C.TRACK_TYPE_TEXT, targetGroup?.mediaTrackGroup)
+        return targetGroup != null
     }
 
     private fun subtitlePreferenceComparator(): Comparator<Tracks.Group> {
