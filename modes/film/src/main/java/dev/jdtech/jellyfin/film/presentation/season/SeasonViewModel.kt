@@ -3,6 +3,7 @@ package dev.jdtech.jellyfin.film.presentation.season
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dev.jdtech.jellyfin.models.FindroidEpisode
 import dev.jdtech.jellyfin.repository.JellyfinRepository
 import java.util.UUID
 import javax.inject.Inject
@@ -43,7 +44,7 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
             is SeasonAction.Play -> {
                 viewModelScope.launch {
                     requestedStartFromBeginning = action.startFromBeginning
-                    val episode = _state.value.episodes.firstOrNull { !it.missing } ?: return@launch
+                    val episode = _state.value.episodes.nextPlayableEpisode() ?: return@launch
                     val previousEpisodeCheck = repository.getPreviousEpisodeCheck(episode.id)
                     if (previousEpisodeCheck == null) {
                         requestPlayback(episode.id, action.startFromBeginning)
@@ -103,4 +104,7 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
                 playbackRequest = SeasonPlaybackRequest(episodeId, startFromBeginning),
             )
     }
+
+    private fun List<FindroidEpisode>.nextPlayableEpisode(): FindroidEpisode? =
+        firstOrNull { !it.missing && !it.played } ?: firstOrNull { !it.missing }
 }
