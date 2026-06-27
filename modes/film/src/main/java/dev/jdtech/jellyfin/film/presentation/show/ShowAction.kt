@@ -6,6 +6,14 @@ import java.util.UUID
 sealed interface ShowAction {
     data class Play(val startFromBeginning: Boolean = false) : ShowAction
 
+    data object PlayPreviousEpisode : ShowAction
+
+    data object PlaySelectedEpisodeAnyway : ShowAction
+
+    data object DismissPreviousEpisodeCheck : ShowAction
+
+    data object PlaybackStarted : ShowAction
+
     data class PlayTrailer(val trailer: String) : ShowAction
 
     data object MarkAsPlayed : ShowAction

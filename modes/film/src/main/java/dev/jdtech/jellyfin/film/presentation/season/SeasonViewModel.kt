@@ -18,6 +18,7 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
     val state = _state.asStateFlow()
 
     lateinit var seasonId: UUID
+    private var requestedStartFromBeginning = false
 
     fun loadSeason(seasonId: UUID) {
         this.seasonId = seasonId
@@ -39,6 +40,34 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
 
     fun onAction(action: SeasonAction) {
         when (action) {
+            is SeasonAction.Play -> {
+                viewModelScope.launch {
+                    requestedStartFromBeginning = action.startFromBeginning
+                    val episode = _state.value.episodes.firstOrNull { !it.missing } ?: return@launch
+                    val previousEpisodeCheck = repository.getPreviousEpisodeCheck(episode.id)
+                    if (previousEpisodeCheck == null) {
+                        requestPlayback(episode.id, action.startFromBeginning)
+                    } else {
+                        _state.emit(_state.value.copy(previousEpisodeCheck = previousEpisodeCheck))
+                    }
+                }
+            }
+            is SeasonAction.PlayPreviousEpisode -> {
+                _state.value.previousEpisodeCheck?.previousEpisode?.let {
+                    requestPlayback(it.id, false)
+                }
+            }
+            is SeasonAction.PlaySelectedEpisodeAnyway -> {
+                _state.value.previousEpisodeCheck?.currentEpisode?.let {
+                    requestPlayback(it.id, requestedStartFromBeginning)
+                }
+            }
+            is SeasonAction.DismissPreviousEpisodeCheck -> {
+                _state.value = _state.value.copy(previousEpisodeCheck = null)
+            }
+            is SeasonAction.PlaybackStarted -> {
+                _state.value = _state.value.copy(playbackRequest = null)
+            }
             is SeasonAction.MarkAsPlayed -> {
                 viewModelScope.launch {
                     repository.markAsPlayed(seasonId)
@@ -65,5 +94,13 @@ class SeasonViewModel @Inject constructor(private val repository: JellyfinReposi
             }
             else -> Unit
         }
+    }
+
+    private fun requestPlayback(episodeId: UUID, startFromBeginning: Boolean) {
+        _state.value =
+            _state.value.copy(
+                previousEpisodeCheck = null,
+                playbackRequest = SeasonPlaybackRequest(episodeId, startFromBeginning),
+            )
     }
 }

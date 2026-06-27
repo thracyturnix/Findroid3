@@ -46,6 +46,7 @@ import dev.jdtech.jellyfin.presentation.film.components.ItemButtonsBar
 import dev.jdtech.jellyfin.presentation.film.components.ItemHeader
 import dev.jdtech.jellyfin.presentation.film.components.ItemPoster
 import dev.jdtech.jellyfin.presentation.film.components.ItemTopBar
+import dev.jdtech.jellyfin.presentation.film.components.PreviousEpisodeDialog
 import dev.jdtech.jellyfin.presentation.theme.FindroidTheme
 import dev.jdtech.jellyfin.presentation.theme.spacings
 import dev.jdtech.jellyfin.presentation.utils.rememberSafePadding
@@ -66,16 +67,21 @@ fun SeasonScreen(
 
     LaunchedEffect(true) { viewModel.loadSeason(seasonId = seasonId) }
 
+    LaunchedEffect(state.playbackRequest) {
+        state.playbackRequest?.let { request ->
+            val intent = Intent(context, PlayerActivity::class.java)
+            intent.putExtra("itemId", request.episodeId.toString())
+            intent.putExtra("itemKind", BaseItemKind.EPISODE.serialName)
+            intent.putExtra("startFromBeginning", request.startFromBeginning)
+            context.startActivity(intent)
+            viewModel.onAction(SeasonAction.PlaybackStarted)
+        }
+    }
+
     SeasonScreenLayout(
         state = state,
         onAction = { action ->
             when (action) {
-                is SeasonAction.Play -> {
-                    val intent = Intent(context, PlayerActivity::class.java)
-                    intent.putExtra("itemId", seasonId.toString())
-                    intent.putExtra("itemKind", BaseItemKind.SEASON.serialName)
-                    context.startActivity(intent)
-                }
                 is SeasonAction.OnBackClick -> navigateBack()
                 is SeasonAction.OnHomeClick -> navigateHome()
                 is SeasonAction.NavigateToItem -> navigateToItem(action.item)
@@ -85,6 +91,15 @@ fun SeasonScreen(
             viewModel.onAction(action)
         },
     )
+
+    state.previousEpisodeCheck?.let { check ->
+        PreviousEpisodeDialog(
+            check = check,
+            onPlayPrevious = { viewModel.onAction(SeasonAction.PlayPreviousEpisode) },
+            onPlaySelected = { viewModel.onAction(SeasonAction.PlaySelectedEpisodeAnyway) },
+            onDismiss = { viewModel.onAction(SeasonAction.DismissPreviousEpisodeCheck) },
+        )
+    }
 }
 
 @Composable

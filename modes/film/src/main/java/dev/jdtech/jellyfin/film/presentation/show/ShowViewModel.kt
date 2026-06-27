@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jellyfin.sdk.model.api.BaseItemKind
 import org.jellyfin.sdk.model.api.PersonKind
 
 @HiltViewModel
@@ -28,6 +29,7 @@ constructor(
     val state = _state.asStateFlow()
 
     lateinit var showId: UUID
+    private var requestedStartFromBeginning = false
 
     fun loadShow(showId: UUID) {
         this.showId = showId
@@ -84,6 +86,45 @@ constructor(
 
     fun onAction(action: ShowAction) {
         when (action) {
+            is ShowAction.Play -> {
+                viewModelScope.launch {
+                    requestedStartFromBeginning = action.startFromBeginning
+                    val nextUpEpisode = repository.getNextUp(showId).firstOrNull()
+                    if (nextUpEpisode == null) {
+                        requestPlayback(showId, BaseItemKind.SERIES, action.startFromBeginning)
+                    } else {
+                        val previousEpisodeCheck =
+                            repository.getPreviousEpisodeCheck(nextUpEpisode.id)
+                        if (previousEpisodeCheck == null) {
+                            requestPlayback(
+                                nextUpEpisode.id,
+                                BaseItemKind.EPISODE,
+                                action.startFromBeginning,
+                            )
+                        } else {
+                            _state.emit(
+                                _state.value.copy(previousEpisodeCheck = previousEpisodeCheck)
+                            )
+                        }
+                    }
+                }
+            }
+            is ShowAction.PlayPreviousEpisode -> {
+                _state.value.previousEpisodeCheck?.previousEpisode?.let {
+                    requestPlayback(it.id, BaseItemKind.EPISODE, false)
+                }
+            }
+            is ShowAction.PlaySelectedEpisodeAnyway -> {
+                _state.value.previousEpisodeCheck?.currentEpisode?.let {
+                    requestPlayback(it.id, BaseItemKind.EPISODE, requestedStartFromBeginning)
+                }
+            }
+            is ShowAction.DismissPreviousEpisodeCheck -> {
+                _state.value = _state.value.copy(previousEpisodeCheck = null)
+            }
+            is ShowAction.PlaybackStarted -> {
+                _state.value = _state.value.copy(playbackRequest = null)
+            }
             is ShowAction.MarkAsPlayed -> {
                 viewModelScope.launch {
                     repository.markAsPlayed(showId)
@@ -117,5 +158,17 @@ constructor(
             }
             else -> Unit
         }
+    }
+
+    private fun requestPlayback(
+        itemId: UUID,
+        itemKind: BaseItemKind,
+        startFromBeginning: Boolean,
+    ) {
+        _state.value =
+            _state.value.copy(
+                previousEpisodeCheck = null,
+                playbackRequest = ShowPlaybackRequest(itemId, itemKind, startFromBeginning),
+            )
     }
 }

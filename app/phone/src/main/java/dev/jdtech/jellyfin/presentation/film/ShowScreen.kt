@@ -56,12 +56,12 @@ import dev.jdtech.jellyfin.presentation.film.components.ItemHeader
 import dev.jdtech.jellyfin.presentation.film.components.ItemPoster
 import dev.jdtech.jellyfin.presentation.film.components.ItemTopBar
 import dev.jdtech.jellyfin.presentation.film.components.OverviewText
+import dev.jdtech.jellyfin.presentation.film.components.PreviousEpisodeDialog
 import dev.jdtech.jellyfin.presentation.theme.FindroidTheme
 import dev.jdtech.jellyfin.presentation.theme.spacings
 import dev.jdtech.jellyfin.presentation.utils.rememberSafePadding
 import dev.jdtech.jellyfin.utils.getShowDateString
 import java.util.UUID
-import org.jellyfin.sdk.model.api.BaseItemKind
 
 @Composable
 fun ShowScreen(
@@ -79,16 +79,21 @@ fun ShowScreen(
 
     LaunchedEffect(true) { viewModel.loadShow(showId = showId) }
 
+    LaunchedEffect(state.playbackRequest) {
+        state.playbackRequest?.let { request ->
+            val intent = Intent(context, PlayerActivity::class.java)
+            intent.putExtra("itemId", request.itemId.toString())
+            intent.putExtra("itemKind", request.itemKind.serialName)
+            intent.putExtra("startFromBeginning", request.startFromBeginning)
+            context.startActivity(intent)
+            viewModel.onAction(ShowAction.PlaybackStarted)
+        }
+    }
+
     ShowScreenLayout(
         state = state,
         onAction = { action ->
             when (action) {
-                is ShowAction.Play -> {
-                    val intent = Intent(context, PlayerActivity::class.java)
-                    intent.putExtra("itemId", showId.toString())
-                    intent.putExtra("itemKind", BaseItemKind.SERIES.serialName)
-                    context.startActivity(intent)
-                }
                 is ShowAction.PlayTrailer -> {
                     try {
                         uriHandler.openUri(action.trailer)
@@ -105,6 +110,15 @@ fun ShowScreen(
             viewModel.onAction(action)
         },
     )
+
+    state.previousEpisodeCheck?.let { check ->
+        PreviousEpisodeDialog(
+            check = check,
+            onPlayPrevious = { viewModel.onAction(ShowAction.PlayPreviousEpisode) },
+            onPlaySelected = { viewModel.onAction(ShowAction.PlaySelectedEpisodeAnyway) },
+            onDismiss = { viewModel.onAction(ShowAction.DismissPreviousEpisodeCheck) },
+        )
+    }
 }
 
 @Composable
