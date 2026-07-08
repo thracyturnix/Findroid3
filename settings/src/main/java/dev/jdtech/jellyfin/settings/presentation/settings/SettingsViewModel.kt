@@ -388,6 +388,17 @@ class SettingsViewModel @Inject constructor(private val appPreferences: AppPrefe
                                                     backendPreference =
                                                         appPreferences.playerGesturesStartMaximized,
                                                 ),
+                                                PreferenceSwitch(
+                                                    nameStringResource =
+                                                        R.string.player_smart_fill,
+                                                    descriptionStringRes =
+                                                        R.string.player_smart_fill_summary,
+                                                    dependencies =
+                                                        listOf(appPreferences.playerGestures),
+                                                    supportedDeviceTypes = listOf(DeviceType.PHONE),
+                                                    backendPreference =
+                                                        appPreferences.playerSmartFill,
+                                                ),
                                             ),
                                     ),
                                     PreferenceGroup(

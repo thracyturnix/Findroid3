@@ -47,6 +47,9 @@ class PlayerGestureHelper(
      * sides. Useful on wide-screen phones to remove black bars from some movies.
      */
     var isZoomEnabled = false
+        private set
+    var hasManualZoomSelection = false
+        private set
 
     /**
      * Tracks a value during a swipe gesture (between multiple onScroll calls). When the gesture
@@ -443,7 +446,7 @@ class PlayerGestureHelper(
                                 Constants.ZOOM_SCALE_THRESHOLD
                         ) {
                             val enableZoom = scaleFactor > 1
-                            updateZoomMode(enableZoom)
+                            updateZoomMode(enableZoom, manual = true)
                         }
                         return true
                     }
@@ -453,7 +456,13 @@ class PlayerGestureHelper(
             )
             .apply { isQuickScaleEnabled = false }
 
-    fun updateZoomMode(enabled: Boolean) {
+    fun updateZoomMode(enabled: Boolean, manual: Boolean = false) {
+        if (manual) {
+            hasManualZoomSelection = true
+        }
+        if (isZoomEnabled == enabled) {
+            return
+        }
         if (playerView.player is MPVPlayer) {
             (playerView.player as MPVPlayer).updateZoomMode(enabled)
         } else {
@@ -462,6 +471,7 @@ class PlayerGestureHelper(
                 else AspectRatioFrameLayout.RESIZE_MODE_FIT
         }
         isZoomEnabled = enabled
+        activity.updateCameraCutoutAvoidance()
     }
 
     private fun releaseAction(event: MotionEvent) {

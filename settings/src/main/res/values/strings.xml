@@ -46,6 +46,8 @@
     <string name="player_brightness_remember">Remember brightness level</string>
     <string name="player_start_maximized">Start maximized</string>
     <string name="player_start_maximized_summary">Open video in maximized mode by default</string>
+    <string name="player_smart_fill">Smart fill padded videos</string>
+    <string name="player_smart_fill_summary">Automatically fill the usable screen when only a small crop is needed</string>
     <string name="seeking">Seeking</string>
     <string name="seek_back_increment">Seek back increment</string>
     <string name="seek_forward_increment">Seek forward increment</string>

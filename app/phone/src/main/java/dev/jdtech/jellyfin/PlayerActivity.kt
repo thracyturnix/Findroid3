@@ -553,8 +553,10 @@ class PlayerActivity : BasePlayerActivity() {
         )
     }
 
-    private fun updateCameraCutoutAvoidance() {
+    fun updateCameraCutoutAvoidance() {
         if (!::binding.isInitialized) return
+
+        updateAutomaticZoomMode()
 
         val adjustment =
             if (cutoutAvoidanceEnabled && !isInPictureInPictureMode) {
@@ -570,6 +572,38 @@ class PlayerActivity : BasePlayerActivity() {
             }
 
         applyCameraCutoutAdjustment(adjustment)
+    }
+
+    private fun updateAutomaticZoomMode() {
+        val gestures = playerGestureHelper ?: return
+        if (gestures.hasManualZoomSelection || isInPictureInPictureMode) return
+
+        val shouldZoom =
+            appPreferences.getValue(appPreferences.playerGesturesStartMaximized) ||
+                (appPreferences.getValue(appPreferences.playerSmartFill) && shouldSmartFill())
+
+        gestures.updateZoomMode(shouldZoom)
+    }
+
+    private fun shouldSmartFill(): Boolean {
+        val playerView = binding.playerView
+        val width = playerView.width
+        val height = playerView.height
+        if (width <= height || width == 0 || height == 0) return false
+
+        val videoSize = viewModel.player.videoSize
+        if (videoSize == VideoSize.UNKNOWN || videoSize.width <= 0 || videoSize.height <= 0) {
+            return false
+        }
+
+        val videoAspectRatio =
+            (videoSize.width * videoSize.pixelWidthHeightRatio) / videoSize.height
+        val containerAspectRatio = width.toFloat() / height
+        if (containerAspectRatio <= videoAspectRatio) return false
+
+        val zoomedHeight = width / videoAspectRatio
+        val verticalCropFraction = (zoomedHeight - height) / zoomedHeight
+        return verticalCropFraction in 0f..SMART_FILL_MAX_VERTICAL_CROP_FRACTION
     }
 
     private fun applyCameraCutoutAdjustment(adjustment: CutoutAdjustment) {
@@ -643,7 +677,7 @@ class PlayerActivity : BasePlayerActivity() {
             return CutoutAdjustment.NONE
         }
 
-        val videoRect = fittedVideoRect(width, height, videoSize)
+        val videoRect = renderedVideoRect(width, height, videoSize)
         val avoidLeft = unsafeLeft > 0 && videoRect.left < unsafeLeft
         val avoidRight = unsafeRight > 0 && videoRect.right > width - unsafeRight
         if (!avoidLeft && !avoidRight) {
@@ -755,11 +789,24 @@ class PlayerActivity : BasePlayerActivity() {
         )
     }
 
-    private fun fittedVideoRect(width: Int, height: Int, videoSize: VideoSize): RectF {
+    private fun renderedVideoRect(width: Int, height: Int, videoSize: VideoSize): RectF {
         val videoAspectRatio =
             (videoSize.width * videoSize.pixelWidthHeightRatio) / videoSize.height
         val containerAspectRatio = width.toFloat() / height
 
+        return if (playerGestureHelper?.isZoomEnabled == true) {
+            zoomedVideoRect(width, height, videoAspectRatio, containerAspectRatio)
+        } else {
+            fittedVideoRect(width, height, videoAspectRatio, containerAspectRatio)
+        }
+    }
+
+    private fun fittedVideoRect(
+        width: Int,
+        height: Int,
+        videoAspectRatio: Float,
+        containerAspectRatio: Float,
+    ): RectF {
         return if (containerAspectRatio > videoAspectRatio) {
             val renderedWidth = height * videoAspectRatio
             val left = (width - renderedWidth) / 2f
@@ -768,6 +815,23 @@ class PlayerActivity : BasePlayerActivity() {
             val renderedHeight = width / videoAspectRatio
             val top = (height - renderedHeight) / 2f
             RectF(0f, top, width.toFloat(), top + renderedHeight)
+        }
+    }
+
+    private fun zoomedVideoRect(
+        width: Int,
+        height: Int,
+        videoAspectRatio: Float,
+        containerAspectRatio: Float,
+    ): RectF {
+        return if (containerAspectRatio > videoAspectRatio) {
+            val renderedHeight = width / videoAspectRatio
+            val top = (height - renderedHeight) / 2f
+            RectF(0f, top, width.toFloat(), top + renderedHeight)
+        } else {
+            val renderedWidth = height * videoAspectRatio
+            val left = (width - renderedWidth) / 2f
+            RectF(left, 0f, left + renderedWidth, height.toFloat())
         }
     }
 
@@ -806,5 +870,6 @@ class PlayerActivity : BasePlayerActivity() {
 
     companion object {
         private const val CAMERA_CUTOUT_EDGE_FRACTION = 0.08f
+        private const val SMART_FILL_MAX_VERTICAL_CROP_FRACTION = 0.20f
     }
 }
