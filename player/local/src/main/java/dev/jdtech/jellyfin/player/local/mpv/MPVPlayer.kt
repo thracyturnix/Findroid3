@@ -1634,15 +1634,32 @@ class MPVPlayer(
     }
 
     fun updateZoomMode(enabled: Boolean) {
+        clearSmartZoom()
         if (enabled) {
-            mpvLib.setOptionString("panscan", "1")
-            mpvLib.setOptionString("sub-use-margins", "yes")
-            mpvLib.setOptionString("sub-ass-force-margins", "yes")
+            mpvLib.setPropertyDouble("panscan", 1.0)
+            mpvLib.setPropertyBoolean("sub-use-margins", true)
+            mpvLib.setPropertyBoolean("sub-ass-force-margins", true)
         } else {
-            mpvLib.setOptionString("panscan", "0")
-            mpvLib.setOptionString("sub-use-margins", "no")
-            mpvLib.setOptionString("sub-ass-force-margins", "no")
+            mpvLib.setPropertyDouble("panscan", 0.0)
+            mpvLib.setPropertyBoolean("sub-use-margins", false)
+            mpvLib.setPropertyBoolean("sub-ass-force-margins", false)
         }
+    }
+
+    /** Applies a precise, lossless smart-fill transform calculated from rendered picture bounds. */
+    fun updateSmartZoom(zoom: Double, panX: Double, panY: Double) {
+        mpvLib.setPropertyDouble("panscan", 0.0)
+        mpvLib.setPropertyDouble("video-zoom", zoom)
+        mpvLib.setPropertyDouble("video-pan-x", panX)
+        mpvLib.setPropertyDouble("video-pan-y", panY)
+        mpvLib.setPropertyBoolean("sub-use-margins", false)
+        mpvLib.setPropertyBoolean("sub-ass-force-margins", false)
+    }
+
+    fun clearSmartZoom() {
+        mpvLib.setPropertyDouble("video-zoom", 0.0)
+        mpvLib.setPropertyDouble("video-pan-x", 0.0)
+        mpvLib.setPropertyDouble("video-pan-y", 0.0)
     }
 
     private val surfaceHolder: SurfaceHolder.Callback =

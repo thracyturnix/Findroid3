@@ -48,6 +48,8 @@ class PlayerGestureHelper(
      */
     var isZoomEnabled = false
         private set
+    var isSmartZoomEnabled = false
+        private set
     var hasManualZoomSelection = false
         private set
 
@@ -460,7 +462,12 @@ class PlayerGestureHelper(
         if (manual) {
             hasManualZoomSelection = true
         }
-        if (isZoomEnabled == enabled) {
+        val clearedSmartZoom = isSmartZoomEnabled
+        if (clearedSmartZoom) {
+            (playerView.player as? MPVPlayer)?.clearSmartZoom()
+            isSmartZoomEnabled = false
+        }
+        if (isZoomEnabled == enabled && !clearedSmartZoom) {
             return
         }
         if (playerView.player is MPVPlayer) {
@@ -472,6 +479,25 @@ class PlayerGestureHelper(
         }
         isZoomEnabled = enabled
         activity.updateCameraCutoutAvoidance()
+    }
+
+    fun updateSmartZoom(zoom: Double, panX: Double, panY: Double): Boolean {
+        val mpvPlayer = playerView.player as? MPVPlayer ?: return false
+        if (hasManualZoomSelection || isZoomEnabled) return false
+        mpvPlayer.updateSmartZoom(zoom, panX, panY)
+        isSmartZoomEnabled = true
+        return true
+    }
+
+    fun resetAutomaticZoomSelection() {
+        hasManualZoomSelection = false
+        if (isSmartZoomEnabled) {
+            (playerView.player as? MPVPlayer)?.clearSmartZoom()
+            isSmartZoomEnabled = false
+        }
+        if (isZoomEnabled) {
+            updateZoomMode(false)
+        }
     }
 
     private fun releaseAction(event: MotionEvent) {
