@@ -36,6 +36,7 @@ import dev.jdtech.jellyfin.film.presentation.home.HomeState
 import dev.jdtech.jellyfin.film.presentation.home.HomeViewModel
 import dev.jdtech.jellyfin.models.FindroidCollection
 import dev.jdtech.jellyfin.models.FindroidItem
+import dev.jdtech.jellyfin.models.FindroidPlaylist
 import dev.jdtech.jellyfin.presentation.components.ErrorDialog
 import dev.jdtech.jellyfin.presentation.film.components.HomeHeader
 import dev.jdtech.jellyfin.presentation.film.components.HomeLibrariesGrid
@@ -51,6 +52,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun HomeScreen(
     onLibraryClick: (library: FindroidCollection) -> Unit,
+    onPlaylistClick: (playlist: FindroidPlaylist) -> Unit,
     onSearchClick: () -> Unit,
     onSettingsClick: () -> Unit,
     onManageServers: () -> Unit,
@@ -67,6 +69,7 @@ fun HomeScreen(
             when (action) {
                 is HomeAction.OnItemClick -> onItemClick(action.item)
                 is HomeAction.OnLibraryClick -> onLibraryClick(action.library)
+                is HomeAction.OnPlaylistClick -> onPlaylistClick(action.playlist)
                 is HomeAction.OnSearchClick -> onSearchClick()
                 is HomeAction.OnSettingsClick -> onSettingsClick()
                 is HomeAction.OnManageServers -> onManageServers()
@@ -108,6 +111,7 @@ private fun HomeScreenLayout(state: HomeState, onAction: (HomeAction) -> Unit) {
                     item(key = "libraries") {
                         HomeLibrariesGrid(
                             libraries = state.libraries,
+                            playlists = state.playlists,
                             selectedLibrary = state.selectedLibrary,
                             defaultStartLibraryId = state.defaultStartLibraryId,
                             itemsPadding = itemsPadding,
@@ -225,6 +229,7 @@ private fun HomeScreenLayoutPreview() {
                 HomeState(
                     server = dummyServer,
                     libraries = dummyCollections,
+                    playlists = emptyList(),
                     defaultStartLibraryId = dummyCollections.firstOrNull()?.id?.toString(),
                     resumeSection = dummyHomeSection,
                     views = listOf(dummyHomeView),

@@ -49,6 +49,7 @@ import dev.jdtech.jellyfin.presentation.film.LibraryScreen
 import dev.jdtech.jellyfin.presentation.film.MediaScreen
 import dev.jdtech.jellyfin.presentation.film.MovieScreen
 import dev.jdtech.jellyfin.presentation.film.PersonScreen
+import dev.jdtech.jellyfin.presentation.film.PlaylistScreen
 import dev.jdtech.jellyfin.presentation.film.SeasonScreen
 import dev.jdtech.jellyfin.presentation.film.ShowScreen
 import dev.jdtech.jellyfin.presentation.settings.AboutScreen
@@ -89,6 +90,8 @@ data class LibraryRoute(
 )
 
 @Serializable data class CollectionRoute(val collectionId: String, val collectionName: String)
+
+@Serializable data class PlaylistRoute(val playlistId: String, val playlistName: String)
 
 @Serializable data object FavoritesRoute
 
@@ -330,6 +333,14 @@ fun NavigationRoot(
                             )
                         )
                     },
+                    onPlaylistClick = {
+                        navController.safeNavigate(
+                            PlaylistRoute(
+                                playlistId = it.id.toString(),
+                                playlistName = it.name,
+                            )
+                        )
+                    },
                     onSearchClick = {
                         searchExpanded = true
                         navController.safeNavigate(MediaRoute) {
@@ -387,6 +398,17 @@ fun NavigationRoot(
                 CollectionScreen(
                     collectionId = UUID.fromString(route.collectionId),
                     collectionName = route.collectionName,
+                    onItemClick = { item ->
+                        navigateToItem(navController = navController, item = item)
+                    },
+                    navigateBack = { navController.safePopBackStack() },
+                )
+            }
+            composable<PlaylistRoute> { backStackEntry ->
+                val route: PlaylistRoute = backStackEntry.toRoute()
+                PlaylistScreen(
+                    playlistId = UUID.fromString(route.playlistId),
+                    playlistName = route.playlistName,
                     onItemClick = { item ->
                         navigateToItem(navController = navController, item = item)
                     },

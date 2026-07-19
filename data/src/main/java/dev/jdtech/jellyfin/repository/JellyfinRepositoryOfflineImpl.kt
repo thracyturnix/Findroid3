@@ -9,6 +9,7 @@ import dev.jdtech.jellyfin.models.FindroidEpisode
 import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.models.FindroidMovie
 import dev.jdtech.jellyfin.models.FindroidPerson
+import dev.jdtech.jellyfin.models.FindroidPlaylist
 import dev.jdtech.jellyfin.models.PreviousEpisodeCheck
 import dev.jdtech.jellyfin.models.FindroidSeason
 import dev.jdtech.jellyfin.models.FindroidSegment
@@ -74,6 +75,14 @@ class JellyfinRepositoryOfflineImpl(
         }
 
     override suspend fun getLibraries(): List<FindroidCollection> {
+        return emptyList()
+    }
+
+    override suspend fun getPlaylists(): List<FindroidPlaylist> {
+        return emptyList()
+    }
+
+    override suspend fun getPlaylistItems(playlistId: UUID): List<FindroidItem> {
         return emptyList()
     }
 

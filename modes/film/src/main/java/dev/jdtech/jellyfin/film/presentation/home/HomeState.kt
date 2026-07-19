@@ -1,6 +1,7 @@
 package dev.jdtech.jellyfin.film.presentation.home
 
 import dev.jdtech.jellyfin.models.FindroidCollection
+import dev.jdtech.jellyfin.models.FindroidPlaylist
 import dev.jdtech.jellyfin.models.HomeItem
 import dev.jdtech.jellyfin.models.Server
 import java.util.UUID
@@ -15,6 +16,7 @@ data class HomeSectionVisibility(
 data class HomeState(
     val server: Server? = null,
     val libraries: List<FindroidCollection> = emptyList(),
+    val playlists: List<FindroidPlaylist> = emptyList(),
     val selectedLibrary: FindroidCollection? = null,
     val defaultStartLibraryId: String? = null,
     val suggestionsSection: HomeItem.Suggestions? = null,

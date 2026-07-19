@@ -11,6 +11,7 @@ import dev.jdtech.jellyfin.models.FindroidEpisode
 import dev.jdtech.jellyfin.models.FindroidItem
 import dev.jdtech.jellyfin.models.FindroidMovie
 import dev.jdtech.jellyfin.models.FindroidPerson
+import dev.jdtech.jellyfin.models.FindroidPlaylist
 import dev.jdtech.jellyfin.models.PreviousEpisodeCheck
 import dev.jdtech.jellyfin.models.FindroidSeason
 import dev.jdtech.jellyfin.models.FindroidSegment
@@ -23,6 +24,7 @@ import dev.jdtech.jellyfin.models.toFindroidEpisode
 import dev.jdtech.jellyfin.models.toFindroidItem
 import dev.jdtech.jellyfin.models.toFindroidMovie
 import dev.jdtech.jellyfin.models.toFindroidPerson
+import dev.jdtech.jellyfin.models.toFindroidPlaylist
 import dev.jdtech.jellyfin.models.toFindroidSeason
 import dev.jdtech.jellyfin.models.toFindroidSegment
 import dev.jdtech.jellyfin.models.toFindroidShow
@@ -112,6 +114,29 @@ class JellyfinRepositoryImpl(
             jellyfinApi.itemsApi.getItems(jellyfinApi.userId!!).content.items.mapNotNull {
                 it.toFindroidCollection(this@JellyfinRepositoryImpl)
             }
+        }
+
+    override suspend fun getPlaylists(): List<FindroidPlaylist> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.itemsApi
+                .getItems(
+                    jellyfinApi.userId!!,
+                    includeItemTypes = listOf(BaseItemKind.PLAYLIST),
+                    recursive = true,
+                )
+                .content
+                .items
+                .map { it.toFindroidPlaylist(this@JellyfinRepositoryImpl) }
+                .sortedBy { it.name.lowercase() }
+        }
+
+    override suspend fun getPlaylistItems(playlistId: UUID): List<FindroidItem> =
+        withContext(Dispatchers.IO) {
+            jellyfinApi.playlistsApi
+                .getPlaylistItems(playlistId, jellyfinApi.userId!!)
+                .content
+                .items
+                .mapNotNull { it.toFindroidItem(this@JellyfinRepositoryImpl, database) }
         }
 
     override suspend fun getItem(itemId: UUID): FindroidItem? =

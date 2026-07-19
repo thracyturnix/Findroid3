@@ -52,6 +52,7 @@ constructor(
                 }
 
                 loadLibraries()
+                loadPlaylists()
                 if (loadSuggestions) {
                     loadSuggestions()
                 } else {
@@ -96,6 +97,11 @@ constructor(
     private suspend fun loadLibraries() {
         Timber.i("Loading libraries")
         _state.emit(_state.value.copy(libraries = repository.getLibraries()))
+    }
+
+    private suspend fun loadPlaylists() {
+        Timber.i("Loading playlists")
+        _state.emit(_state.value.copy(playlists = repository.getPlaylists()))
     }
 
     private suspend fun loadDefaultStartLibrary() {
