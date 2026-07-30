@@ -16,6 +16,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
+import android.os.SystemClock
 import android.util.Rational
 import android.util.TypedValue
 import android.view.Gravity
@@ -86,6 +87,7 @@ class PlayerActivity : BasePlayerActivity() {
     private var smartFillAnalysisFinished = false
     private var smartFillSampleInFlight = false
     private var smartFillSampleAttempts = 0
+    private var smartFillAnalysisStartedAt = 0L
     private var smartFillGeneration = 0
     private var smartFillVideoSize = VideoSize.UNKNOWN
 
@@ -662,6 +664,7 @@ class PlayerActivity : BasePlayerActivity() {
         }
 
         smartFillAnalysisStarted = true
+        smartFillAnalysisStartedAt = SystemClock.elapsedRealtime()
         handler.removeCallbacks(smartFillSample)
         handler.postDelayed(smartFillSample, SMART_FILL_INITIAL_SAMPLE_DELAY_MS)
     }
@@ -717,8 +720,13 @@ class PlayerActivity : BasePlayerActivity() {
                 }
                 bitmap.recycle()
 
-                if (smartFillSamples.size >= SMART_FILL_REQUIRED_SAMPLES) {
-                    evaluateSmartFill(surface, SMART_FILL_REQUIRED_SAMPLES)
+                val analysisDuration =
+                    SystemClock.elapsedRealtime() - smartFillAnalysisStartedAt
+                if (
+                    smartFillSamples.size >= SMART_FILL_REQUIRED_SAMPLES &&
+                        analysisDuration >= SMART_FILL_MIN_ANALYSIS_DURATION_MS
+                ) {
+                    evaluateSmartFill(surface)
                 } else if (smartFillSampleAttempts < SMART_FILL_MAX_SAMPLE_ATTEMPTS) {
                     scheduleNextSmartFillSample()
                 } else {
@@ -735,24 +743,27 @@ class PlayerActivity : BasePlayerActivity() {
         handler.postDelayed(smartFillSample, SMART_FILL_SAMPLE_INTERVAL_MS)
     }
 
-    private fun evaluateSmartFill(surface: SurfaceView, sampleCount: Int) {
-        val samples = smartFillSamples.takeLast(sampleCount)
+    private fun evaluateSmartFill(surface: SurfaceView) {
+        // Openings can contain black frames or small title cards that look like enormous encoded
+        // padding. Use the union across the full observation window so later picture frames keep
+        // genuine dark picture areas from being cropped.
+        val samples = smartFillSamples.toList()
         val sampleWidth = SMART_FILL_SAMPLE_WIDTH
         val sampleHeight =
             (SMART_FILL_SAMPLE_WIDTH * surface.height.toFloat() / surface.width)
                 .toInt()
                 .coerceIn(SMART_FILL_MIN_SAMPLE_HEIGHT, SMART_FILL_MAX_SAMPLE_HEIGHT)
-        val marginX = (sampleWidth * SMART_FILL_SAFETY_MARGIN_FRACTION).coerceAtLeast(1f).toInt()
-        val marginY = (sampleHeight * SMART_FILL_SAFETY_MARGIN_FRACTION).coerceAtLeast(1f).toInt()
+        // Keep every edge identified across the sample set. A median can discard real picture
+        // edges during dark shots and then make the calculated zoom crop into the picture.
         val activeSample =
             Rect(
-                (median(samples.map { it.left }) - marginX).coerceAtLeast(0),
-                (median(samples.map { it.top }) - marginY).coerceAtLeast(0),
-                (median(samples.map { it.right }) + marginX).coerceAtMost(sampleWidth),
-                (median(samples.map { it.bottom }) + marginY).coerceAtMost(sampleHeight),
+                samples.minOf { it.left },
+                samples.minOf { it.top },
+                samples.maxOf { it.right },
+                samples.maxOf { it.bottom },
             )
         if (activeSample.width() <= 0 || activeSample.height() <= 0) {
-            logSmartFillSkipped("invalid median active picture")
+            logSmartFillSkipped("invalid combined active picture")
             finishSmartFillAnalysis()
             return
         }
@@ -770,39 +781,11 @@ class PlayerActivity : BasePlayerActivity() {
             return
         }
 
-        val edgeToleranceX = safeRect.width() * SMART_FILL_EDGE_TOLERANCE_FRACTION
-        val edgeToleranceY = safeRect.height() * SMART_FILL_EDGE_TOLERANCE_FRACTION
-        val touchesLeftAndRight =
-            activeRect.left <= safeRect.left + edgeToleranceX &&
-                activeRect.right >= safeRect.right - edgeToleranceX
-        val touchesTopAndBottom =
-            activeRect.top <= safeRect.top + edgeToleranceY &&
-                activeRect.bottom >= safeRect.bottom - edgeToleranceY
-        if (touchesLeftAndRight || touchesTopAndBottom) {
-            logSmartFillDecision(
-                surface,
-                safeRect,
-                activeSample,
-                touchesLeftAndRight,
-                touchesTopAndBottom,
-                1f,
-                0.0,
-                0.0,
-                "already reaches an opposing edge pair",
-            )
-            finishSmartFillAnalysis()
-            return
-        }
-
         val scaleX = safeRect.width() / activeRect.width()
         val scaleY = safeRect.height() / activeRect.height()
-        val baseScale = min(scaleX, scaleY)
-        if (baseScale < SMART_FILL_MIN_SCALE) {
-            logSmartFillSkipped("available-space gain below threshold")
-            finishSmartFillAnalysis()
-            return
-        }
-        val scale = baseScale * SMART_FILL_OVERSCAN_SCALE
+        // This is the unique largest aspect-preserving scale that keeps the whole detected
+        // picture inside the safe rectangle. One opposing edge pair will touch exactly.
+        val scale = min(scaleX, scaleY)
 
         val surfaceCenterX = surface.width / 2f
         val surfaceCenterY = surface.height / 2f
@@ -824,6 +807,8 @@ class PlayerActivity : BasePlayerActivity() {
         val panX = (translationX / (fittedRect.width() * scale)).toDouble()
         val panY = (translationY / (fittedRect.height() * scale)).toDouble()
         val zoom = ln(scale.toDouble()) / ln(2.0)
+        val touchesLeftAndRight = scaleX <= scaleY
+        val touchesTopAndBottom = scaleY <= scaleX
 
         if (playerGestureHelper?.updateSmartZoom(zoom, panX, panY) == true) {
             smartFillApplied = true
@@ -844,11 +829,6 @@ class PlayerActivity : BasePlayerActivity() {
         } else {
             finishSmartFillAnalysis()
         }
-    }
-
-    private fun median(values: List<Int>): Int {
-        val sorted = values.sorted()
-        return sorted[sorted.size / 2]
     }
 
     private fun smartFillSafeRect(surface: SurfaceView): RectF {
@@ -884,6 +864,7 @@ class PlayerActivity : BasePlayerActivity() {
         smartFillAnalysisFinished = false
         smartFillSampleInFlight = false
         smartFillSampleAttempts = 0
+        smartFillAnalysisStartedAt = 0L
         if (resetManualSelection) {
             playerGestureHelper?.resetAutomaticZoomSelection()
         } else if (playerGestureHelper?.isSmartZoomEnabled == true) {
@@ -1217,12 +1198,9 @@ class PlayerActivity : BasePlayerActivity() {
         private const val SMART_FILL_MIN_SAMPLE_HEIGHT = 96
         private const val SMART_FILL_MAX_SAMPLE_HEIGHT = 256
         private const val SMART_FILL_REQUIRED_SAMPLES = 5
-        private const val SMART_FILL_MAX_SAMPLE_ATTEMPTS = 12
+        private const val SMART_FILL_MAX_SAMPLE_ATTEMPTS = 90
         private const val SMART_FILL_INITIAL_SAMPLE_DELAY_MS = 700L
         private const val SMART_FILL_SAMPLE_INTERVAL_MS = 450L
-        private const val SMART_FILL_EDGE_TOLERANCE_FRACTION = 0.015f
-        private const val SMART_FILL_SAFETY_MARGIN_FRACTION = 0.005f
-        private const val SMART_FILL_OVERSCAN_SCALE = 1.02f
-        private const val SMART_FILL_MIN_SCALE = 1.025f
+        private const val SMART_FILL_MIN_ANALYSIS_DURATION_MS = 24_000L
     }
 }
