@@ -16,7 +16,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.Process
-import android.os.SystemClock
 import android.util.Rational
 import android.util.TypedValue
 import android.view.Gravity
@@ -40,6 +39,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.DefaultTimeBar
 import androidx.media3.ui.PlayerControlView
@@ -48,6 +48,7 @@ import androidx.media3.ui.SubtitleView
 import dagger.hilt.android.AndroidEntryPoint
 import dev.jdtech.jellyfin.databinding.ActivityPlayerBinding
 import dev.jdtech.jellyfin.player.ActivePictureDetector
+import dev.jdtech.jellyfin.player.SmartFillCalculator
 import dev.jdtech.jellyfin.player.local.mpv.MPVPlayer
 import dev.jdtech.jellyfin.player.local.presentation.PlayerEvents
 import dev.jdtech.jellyfin.player.local.presentation.PlayerViewModel
@@ -59,8 +60,6 @@ import dev.jdtech.jellyfin.utils.PlayerGestureHelper
 import dev.jdtech.jellyfin.utils.PreviewScrubListener
 import java.util.UUID
 import javax.inject.Inject
-import kotlin.math.ln
-import kotlin.math.min
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -87,7 +86,6 @@ class PlayerActivity : BasePlayerActivity() {
     private var smartFillAnalysisFinished = false
     private var smartFillSampleInFlight = false
     private var smartFillSampleAttempts = 0
-    private var smartFillAnalysisStartedAt = 0L
     private var smartFillGeneration = 0
     private var smartFillVideoSize = VideoSize.UNKNOWN
 
@@ -146,6 +144,11 @@ class PlayerActivity : BasePlayerActivity() {
 
         cutoutAvoidanceEnabled = appPreferences.getValue(appPreferences.playerAvoidCameraCutout)
         binding.playerView.player = viewModel.player
+        if (viewModel.player is MPVPlayer) {
+            // MPV performs its own aspect fitting and needs the full screen-sized surface so its
+            // zoom and pan properties can actually reach every usable edge.
+            binding.playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FILL
+        }
         applySubtitleAppearance()
         viewModel.player.addListener(cutoutAvoidancePlayerListener)
         binding.playerView.addOnLayoutChangeListener {
@@ -664,7 +667,6 @@ class PlayerActivity : BasePlayerActivity() {
         }
 
         smartFillAnalysisStarted = true
-        smartFillAnalysisStartedAt = SystemClock.elapsedRealtime()
         handler.removeCallbacks(smartFillSample)
         handler.postDelayed(smartFillSample, SMART_FILL_INITIAL_SAMPLE_DELAY_MS)
     }
@@ -720,12 +722,7 @@ class PlayerActivity : BasePlayerActivity() {
                 }
                 bitmap.recycle()
 
-                val analysisDuration =
-                    SystemClock.elapsedRealtime() - smartFillAnalysisStartedAt
-                if (
-                    smartFillSamples.size >= SMART_FILL_REQUIRED_SAMPLES &&
-                        analysisDuration >= SMART_FILL_MIN_ANALYSIS_DURATION_MS
-                ) {
+                if (smartFillSamples.size >= SMART_FILL_REQUIRED_SAMPLES) {
                     evaluateSmartFill(surface)
                 } else if (smartFillSampleAttempts < SMART_FILL_MAX_SAMPLE_ATTEMPTS) {
                     scheduleNextSmartFillSample()
@@ -744,29 +741,31 @@ class PlayerActivity : BasePlayerActivity() {
     }
 
     private fun evaluateSmartFill(surface: SurfaceView) {
-        // Openings can contain black frames or small title cards that look like enormous encoded
-        // padding. Use the union across the full observation window so later picture frames keep
-        // genuine dark picture areas from being cropped.
-        val samples = smartFillSamples.toList()
         val sampleWidth = SMART_FILL_SAMPLE_WIDTH
         val sampleHeight =
             (SMART_FILL_SAMPLE_WIDTH * surface.height.toFloat() / surface.width)
                 .toInt()
                 .coerceIn(SMART_FILL_MIN_SAMPLE_HEIGHT, SMART_FILL_MAX_SAMPLE_HEIGHT)
-        // Keep every edge identified across the sample set. A median can discard real picture
-        // edges during dark shots and then make the calculated zoom crop into the picture.
-        val activeSample =
-            Rect(
-                samples.minOf { it.left },
-                samples.minOf { it.top },
-                samples.maxOf { it.right },
-                samples.maxOf { it.bottom },
+        val activeSampleBounds =
+            SmartFillCalculator.combineSamples(
+                smartFillSamples.takeLast(SMART_FILL_REQUIRED_SAMPLES).map {
+                    SmartFillCalculator.SampleBounds(it.left, it.top, it.right, it.bottom)
+                },
+                sampleWidth,
+                sampleHeight,
             )
-        if (activeSample.width() <= 0 || activeSample.height() <= 0) {
+        if (activeSampleBounds == null) {
             logSmartFillSkipped("invalid combined active picture")
             finishSmartFillAnalysis()
             return
         }
+        val activeSample =
+            Rect(
+                activeSampleBounds.left,
+                activeSampleBounds.top,
+                activeSampleBounds.right,
+                activeSampleBounds.bottom,
+            )
         val activeRect =
             RectF(
                 activeSample.left * surface.width / sampleWidth.toFloat(),
@@ -781,19 +780,6 @@ class PlayerActivity : BasePlayerActivity() {
             return
         }
 
-        val scaleX = safeRect.width() / activeRect.width()
-        val scaleY = safeRect.height() / activeRect.height()
-        // This is the unique largest aspect-preserving scale that keeps the whole detected
-        // picture inside the safe rectangle. One opposing edge pair will touch exactly.
-        val scale = min(scaleX, scaleY)
-
-        val surfaceCenterX = surface.width / 2f
-        val surfaceCenterY = surface.height / 2f
-        val translatedCenterX = surfaceCenterX + scale * (activeRect.centerX() - surfaceCenterX)
-        val translatedCenterY = surfaceCenterY + scale * (activeRect.centerY() - surfaceCenterY)
-        val translationX = safeRect.centerX() - translatedCenterX
-        val translationY = safeRect.centerY() - translatedCenterY
-
         val videoSize = viewModel.player.videoSize
         val videoAspectRatio =
             (videoSize.width * videoSize.pixelWidthHeightRatio) / videoSize.height
@@ -804,13 +790,41 @@ class PlayerActivity : BasePlayerActivity() {
                 videoAspectRatio,
                 surface.width.toFloat() / surface.height,
             )
-        val panX = (translationX / (fittedRect.width() * scale)).toDouble()
-        val panY = (translationY / (fittedRect.height() * scale)).toDouble()
-        val zoom = ln(scale.toDouble()) / ln(2.0)
-        val touchesLeftAndRight = scaleX <= scaleY
-        val touchesTopAndBottom = scaleY <= scaleX
+        val decision =
+            SmartFillCalculator.calculate(
+                surfaceWidth = surface.width,
+                surfaceHeight = surface.height,
+                safeRect = safeRect.toSmartFillBounds(),
+                activeRect = activeRect.toSmartFillBounds(),
+                fittedVideoRect = fittedRect.toSmartFillBounds(),
+            )
+        if (decision is SmartFillCalculator.Decision.Skip) {
+            logSmartFillDecision(
+                surface,
+                safeRect,
+                activeSample,
+                null,
+                1f,
+                0.0,
+                0.0,
+                decision.reason.description,
+            )
+            if (
+                decision.reason.canRetry &&
+                    smartFillSampleAttempts < SMART_FILL_MAX_SAMPLE_ATTEMPTS
+            ) {
+                scheduleNextSmartFillSample()
+            } else {
+                finishSmartFillAnalysis()
+            }
+            return
+        }
+        decision as SmartFillCalculator.Decision.Apply
 
-        if (playerGestureHelper?.updateSmartZoom(zoom, panX, panY) == true) {
+        if (
+            playerGestureHelper?.updateSmartZoom(decision.zoom, decision.panX, decision.panY) ==
+                true
+        ) {
             smartFillApplied = true
             smartFillAnalysisFinished = true
             smartFillAnalysisStarted = false
@@ -819,12 +833,11 @@ class PlayerActivity : BasePlayerActivity() {
                 surface,
                 safeRect,
                 activeSample,
-                touchesLeftAndRight,
-                touchesTopAndBottom,
-                scale,
-                panX,
-                panY,
-                "applied",
+                decision,
+                decision.scale,
+                decision.panX,
+                decision.panY,
+                "applied whole-picture fit",
             )
         } else {
             finishSmartFillAnalysis()
@@ -864,7 +877,6 @@ class PlayerActivity : BasePlayerActivity() {
         smartFillAnalysisFinished = false
         smartFillSampleInFlight = false
         smartFillSampleAttempts = 0
-        smartFillAnalysisStartedAt = 0L
         if (resetManualSelection) {
             playerGestureHelper?.resetAutomaticZoomSelection()
         } else if (playerGestureHelper?.isSmartZoomEnabled == true) {
@@ -897,8 +909,7 @@ class PlayerActivity : BasePlayerActivity() {
         surface: SurfaceView,
         safeRect: RectF,
         activeSample: Rect,
-        touchesLeftAndRight: Boolean,
-        touchesTopAndBottom: Boolean,
+        transform: SmartFillCalculator.Decision.Apply?,
         scale: Float,
         panX: Double,
         panY: Double,
@@ -906,7 +917,7 @@ class PlayerActivity : BasePlayerActivity() {
     ) {
         val videoSize = viewModel.player.videoSize
         Timber.d(
-            "Smart fill: decision=%s, player=%dx%d, video=%dx%d par=%.3f, surface=%dx%d, safeRect=%s, activeSample=%s/%dx%d, touchesLR=%s, touchesTB=%s, scale=%.3f, pan=[%.4f,%.4f], attempts=%d",
+            "Smart fill: decision=%s, player=%dx%d, video=%dx%d par=%.3f, surface=%dx%d, safeRect=%s, activeSample=%s/%dx%d, sourcePadding=%.3f, scale=%.3f, pan=[%.4f,%.4f], attempts=%d",
             reason,
             binding.playerView.width,
             binding.playerView.height,
@@ -921,14 +932,16 @@ class PlayerActivity : BasePlayerActivity() {
             (SMART_FILL_SAMPLE_WIDTH * surface.height.toFloat() / surface.width)
                 .toInt()
                 .coerceIn(SMART_FILL_MIN_SAMPLE_HEIGHT, SMART_FILL_MAX_SAMPLE_HEIGHT),
-            touchesLeftAndRight,
-            touchesTopAndBottom,
+            transform?.sourcePaddingFraction ?: 0f,
             scale,
             panX,
             panY,
             smartFillSampleAttempts,
         )
     }
+
+    private fun RectF.toSmartFillBounds() =
+        SmartFillCalculator.Bounds(left, top, right, bottom)
 
     private fun applyCameraCutoutAdjustment(adjustment: CutoutAdjustment) {
         if (
@@ -999,6 +1012,32 @@ class PlayerActivity : BasePlayerActivity() {
                 reason = "no unsafe horizontal cutout",
             )
             return CutoutAdjustment.NONE
+        }
+
+        // Smart Fill can enlarge and pan MPV after the ordinary fitted-video check below. Resize
+        // the SurfaceView to the cutout-safe area so the whole picture is fitted beside the camera.
+        // The resized surface also becomes Smart Fill's coordinate space.
+        if (
+            appPreferences.getValue(appPreferences.playerSmartFill) &&
+                viewModel.player is MPVPlayer
+        ) {
+            val adjustment =
+                CutoutAdjustment(
+                    paddingLeft = unsafeLeft,
+                    paddingRight = unsafeRight,
+                    strategy = "reserve smart fill safe surface",
+                    gravity = Gravity.CENTER,
+                )
+            logCameraCutoutDecision(
+                width = width,
+                height = height,
+                videoSize = videoSize,
+                cutout = cutout,
+                videoRect = renderedVideoRect(width, height, videoSize),
+                adjustment = adjustment,
+                reason = "reserve cutout-safe MPV surface",
+            )
+            return adjustment
         }
 
         val videoRect = renderedVideoRect(width, height, videoSize)
@@ -1197,10 +1236,9 @@ class PlayerActivity : BasePlayerActivity() {
         private const val SMART_FILL_SAMPLE_WIDTH = 256
         private const val SMART_FILL_MIN_SAMPLE_HEIGHT = 96
         private const val SMART_FILL_MAX_SAMPLE_HEIGHT = 256
-        private const val SMART_FILL_REQUIRED_SAMPLES = 5
-        private const val SMART_FILL_MAX_SAMPLE_ATTEMPTS = 90
+        private const val SMART_FILL_REQUIRED_SAMPLES = 9
+        private const val SMART_FILL_MAX_SAMPLE_ATTEMPTS = 24
         private const val SMART_FILL_INITIAL_SAMPLE_DELAY_MS = 700L
         private const val SMART_FILL_SAMPLE_INTERVAL_MS = 450L
-        private const val SMART_FILL_MIN_ANALYSIS_DURATION_MS = 24_000L
     }
 }

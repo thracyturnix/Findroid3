@@ -275,6 +275,8 @@ class MPVPlayer(
                 Property("speed", MpvFormat.MPV_FORMAT_DOUBLE),
                 Property("playlist-count", MpvFormat.MPV_FORMAT_INT64),
                 Property("playlist-current-pos", MpvFormat.MPV_FORMAT_INT64),
+                Property("dwidth", MpvFormat.MPV_FORMAT_INT64),
+                Property("dheight", MpvFormat.MPV_FORMAT_INT64),
             )
             .forEach { (name, format) -> mpvLib.observeProperty(name, format) }
 
@@ -446,6 +448,7 @@ class MPVPlayer(
     private var initialIndex: Int = 0
     private var initialSeekTo: Long = 0L
     private var oldMediaItem: MediaItem? = null
+    private var lastNotifiedVideoSize: VideoSize = VideoSize.UNKNOWN
 
     // mpv events
     override fun eventProperty(property: String) {
@@ -547,6 +550,7 @@ class MPVPlayer(
                         }
                     }
                 }
+                "dwidth", "dheight" -> notifyVideoSizeChangedIfNeeded()
             }
         }
     }
@@ -568,6 +572,7 @@ class MPVPlayer(
         handler.post {
             when (eventId) {
                 MpvEvent.MPV_EVENT_START_FILE -> {
+                    lastNotifiedVideoSize = VideoSize.UNKNOWN
                     if (!isPlayerReady) {
                         for (command in initialCommands) {
                             mpvLib.command(command)
@@ -578,6 +583,7 @@ class MPVPlayer(
                     isSeekable = mpvLib.getPropertyBoolean("seekable") == true
                     currentDurationMs =
                         (mpvLib.getPropertyDouble("duration")?.times(C.MILLIS_PER_SECOND))?.toLong()
+                    notifyVideoSizeChangedIfNeeded()
                 }
                 MpvEvent.MPV_EVENT_SEEK -> {
                     setPlayerStateAndNotifyIfChanged(playbackState = STATE_BUFFERING)
@@ -587,6 +593,7 @@ class MPVPlayer(
                     }
                 }
                 MpvEvent.MPV_EVENT_PLAYBACK_RESTART -> {
+                    notifyVideoSizeChangedIfNeeded()
                     if (!isPlayerReady) {
                         isPlayerReady = true
                         seekTo(C.TIME_UNSET)
@@ -1519,8 +1526,25 @@ class MPVPlayer(
     override fun getVideoSize(): VideoSize {
         val width = mpvLib.getPropertyInt("width")
         val height = mpvLib.getPropertyInt("height")
-        if (width == null || height == null) return VideoSize.UNKNOWN
-        return VideoSize(width, height)
+        if (width == null || height == null || width <= 0 || height <= 0) return VideoSize.UNKNOWN
+        val displayWidth = mpvLib.getPropertyInt("dwidth") ?: width
+        val displayHeight = mpvLib.getPropertyInt("dheight") ?: height
+        val pixelRatio =
+            if (displayWidth > 0 && displayHeight > 0 && width > 0 && height > 0) {
+                ((displayWidth.toDouble() * height) / (displayHeight.toDouble() * width)).toFloat()
+            } else {
+                1f
+            }
+        return VideoSize(width, height, pixelRatio.takeIf { it.isFinite() && it > 0f } ?: 1f)
+    }
+
+    private fun notifyVideoSizeChangedIfNeeded() {
+        val newVideoSize = getVideoSize()
+        if (newVideoSize == VideoSize.UNKNOWN || newVideoSize == lastNotifiedVideoSize) return
+        lastNotifiedVideoSize = newVideoSize
+        listeners.sendEvent(EVENT_VIDEO_SIZE_CHANGED) { listener ->
+            listener.onVideoSizeChanged(newVideoSize)
+        }
     }
 
     override fun getSurfaceSize(): Size {
